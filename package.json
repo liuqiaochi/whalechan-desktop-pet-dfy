@@ -1,0 +1,42 @@
+{
+  "name": "whalechan-desktop-pet",
+  "version": "1.0.0",
+  "description": "鲸鱼娘跨平台桌宠（macOS / Windows）",
+  "main": "main.js",
+  "author": "laofei",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist": "electron-builder --mac --win"
+  },
+  "build": {
+    "appId": "com.laofei.whalechan",
+    "productName": "鲸鱼娘桌宠",
+    "copyright": "Copyright © 2026 laofei",
+    "directories": {
+      "output": "dist-electron",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "!src/sprites/_contact_sheet.png"
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.utilities",
+      "icon": "build/icon.icns"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.8.0",
+    "electron-builder": "^26.15.3"
+  }
+}

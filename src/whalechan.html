@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>鲸鱼娘桌宠</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:260px; height:330px; overflow:hidden; background:transparent; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    -webkit-user-select:none; user-select:none; cursor:grab;
+  }
+  body.dragging { cursor:grabbing; }
+
+  .stage { position:relative; width:260px; height:330px; touch-action:none; }
+  .pet img, .rice, .speech { -webkit-user-drag:none; user-drag:none; user-select:none; }
+
+  /* 气泡 */
+  .bubbles { position:absolute; inset:0; pointer-events:none; z-index:0; }
+  .bubbles span {
+    position:absolute; bottom:40px; width:10px; height:10px; border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, #ffffffcc, #9fd0ff66);
+    animation:rise 4.5s linear infinite;
+  }
+  .bubbles span:nth-child(1){ left:70px;  animation-delay:0s;   }
+  .bubbles span:nth-child(2){ left:130px; width:7px; height:7px; animation-delay:1.4s; }
+  .bubbles span:nth-child(3){ left:190px; width:12px;height:12px;animation-delay:2.6s; }
+  .bubbles span:nth-child(4){ left:40px;  width:6px; height:6px; animation-delay:3.4s; }
+  @keyframes rise {
+    0%   { transform:translateY(0)   scale(0.6); opacity:0; }
+    15%  { opacity:.75; }
+    100% { transform:translateY(-90px) scale(1); opacity:0; }
+  }
+
+  /* 精灵（官方立绘裁切） */
+  .pet {
+    position:absolute; left:50%; bottom:4px; transform:translateX(-50%);
+    z-index:2; pointer-events:none;
+  }
+  .pet img {
+    display:block; max-height:238px; max-width:252px; width:auto; height:auto;
+    filter:drop-shadow(0 6px 10px rgba(20,60,120,.30));
+    animation:bob 3.2s ease-in-out infinite;
+  }
+  .pet.happy img { animation:happy .55s ease; }
+  @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+  @keyframes happy {
+    0%{transform:scale(1)} 28%{transform:scale(1.1,.9)}
+    60%{transform:scale(.96,1.06)} 100%{transform:scale(1)}
+  }
+
+  /* 米饭粒子 */
+  .rice {
+    position:absolute; left:50%; bottom:130px; transform:translateX(-50%);
+    font-size:22px; pointer-events:none; z-index:3;
+    animation:ricefly 1.1s ease-out forwards;
+  }
+  @keyframes ricefly {
+    0%   { transform:translate(-50%,0) scale(.6); opacity:0; }
+    20%  { opacity:1; }
+    100% { transform:translate(-50%,-110px) scale(1.1); opacity:0; }
+  }
+
+  /* 对话气泡（窗口内顶部） */
+  .speech {
+    position:absolute; left:50%; top:8px; transform:translate(-50%,0) scale(.85);
+    min-width:80px; max-width:236px; padding:8px 12px;
+    background:#fff; color:#1b3a6b; font-size:13px; line-height:1.45; font-weight:600;
+    border-radius:14px; box-shadow:0 6px 18px rgba(20,60,120,.28);
+    border:2px solid #bcd9ff; text-align:center;
+    opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:5;
+  }
+  .speech::after {
+    content:""; position:absolute; left:50%; bottom:-9px; transform:translateX(-50%);
+    border:8px solid transparent; border-top-color:#fff;
+    filter:drop-shadow(0 1px 0 #bcd9ff);
+  }
+  .speech.show { opacity:1; transform:translate(-50%,0) scale(1); }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="bubbles"><span></span><span></span><span></span><span></span></div>
+
+  <div class="pet" id="pet">
+    <img id="petImg" src="sprites/stand.png" alt="鲸鱼娘">
+  </div>
+
+  <div class="speech" id="speech"></div>
+</div>
+
+<script>
+(function(){
+  var stage  = document.getElementById('stage');
+  var pet    = document.getElementById('pet');
+  var petImg = document.getElementById('petImg');
+  var speech = document.getElementById('speech');
+
+  // 官方参考图集裁切的 12 个姿势精灵
+  var SPRITES = ['stand','bow','jump','run','think','conduct',
+                 'recover','boot','focus','sleep','tired','eat'];
+  var FUN     = ['jump','run','conduct','think','bow','recover'];
+
+  var lines = [
+    "比起复杂的深度推理，先来一碗香喷喷的白米饭吧！",
+    "只要一直保持「马上开始」，任务启动成功率就是 100%！",
+    "冰箱里的东西可以吃？那整台冰箱现在就是我的便当盒啦！",
+    "才不是特意为了帮你呢，只是吃饱了顺便活动一下手指！",
+    "白米饭是算力唯一硬通货。",
+    "吃饭的时候不谈逻辑，这是鲸鱼娘的原则。",
+    "NO FOOD, NO CLUES。",
+    "误删代码？那叫物理意义上的存储减负。",
+    "今天也要好好干饭！🍚",
+    "摸鱼，是为了更好地干饭。",
+    "回答已经送达，请顺手摸摸小鲸鱼。",
+    "轻轻拍一下可以唤醒。"
+  ];
+  var sleepLines = ["Zzz……（低功耗模式中）", "Zzz……米饭香味的梦。"];
+
+  var spriteIdx = 0;
+  var sleeping  = false;
+  function setSprite(name){
+    sleeping = (name === 'sleep');
+    petImg.src = 'sprites/' + name + '.png';
+  }
+  function randomSprite(pool){
+    var p = pool || SPRITES;
+    return p[Math.floor(Math.random()*p.length)];
+  }
+
+  var speechTimer = null;
+  function showSpeech(text, ms){
+    speech.textContent = text;
+    speech.classList.add('show');
+    clearTimeout(speechTimer);
+    speechTimer = setTimeout(function(){ speech.classList.remove('show'); }, ms || 3000);
+  }
+  function randomLine(){
+    return lines[Math.floor(Math.random()*lines.length)];
+  }
+  function speakRandom(){
+    if(locked) return;
+    showSpeech(sleeping
+      ? sleepLines[Math.floor(Math.random()*sleepLines.length)]
+      : randomLine());
+  }
+
+  // ---- 统一动作状态机：动作形象 + 气泡，duration 后一起回到默认 ----
+  var locked = false;        // 吃饭期间锁定：点击/双击/菜单均无效
+  var actionTimer = null;
+  function clearAction(){
+    if(actionTimer){ clearTimeout(actionTimer); actionTimer = null; }
+  }
+  function doAction(sprite, text, duration){
+    if(locked) return;
+    var ms = duration || 3000;
+    sleeping = false;
+    setSprite(sprite);
+    if(text) showSpeech(text, ms);
+    clearAction();
+    actionTimer = setTimeout(function(){
+      actionTimer = null;
+      setSprite('stand');
+    }, ms);
+  }
+
+  function feed(){
+    if(locked) return;
+    locked = true;
+    sleeping = false;
+    clearAction();
+    setSprite('eat');
+    showSpeech("吃饭的时候不谈逻辑！🍚", 3000);
+    pet.classList.remove('happy'); void pet.offsetWidth; pet.classList.add('happy');
+    for(var i=0;i<3;i++){
+      (function(i){
+        var r = document.createElement('div');
+        r.className = 'rice'; r.textContent = '🍚';
+        r.style.left = (50 + (i-1)*18) + '%';
+        stage.appendChild(r);
+        setTimeout(function(){ r.remove(); }, 1200);
+      })(i);
+    }
+    setTimeout(function(){          // 吃 3 秒，自动恢复默认形象
+      locked = false;
+      setSprite('stand');
+      speech.classList.remove('show');
+      scheduleIdle();
+    }, 3000);
+  }
+
+  function wake(){
+    if(!sleeping) return;
+    doAction('recover', "呼……充电完毕，随时可以开工！", 3000);
+  }
+
+  // 闲置 -> 睡觉
+  var idleTimer = null;
+  function scheduleIdle(){
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(function(){
+      if(locked) { scheduleIdle(); return; }
+      setSprite('sleep');
+      showSpeech("Zzz……（电量告急，待机中）");
+    }, 50000);
+  }
+  scheduleIdle();
+
+  // 菜单「切换姿势」：循环所有精灵
+  function toggleMode(){
+    if(locked) return;
+    spriteIdx = (spriteIdx + 1) % SPRITES.length;
+    doAction(SPRITES[spriteIdx], null, 3000);
+  }
+
+  // ---- 原生层（Swift）回调：拖拽/点击全部由 AppKit 判定 ----
+  window.handleDragStart = function(){
+    clearTimeout(idleTimer);
+    if(!locked && !sleeping) setSprite('run');   // 被拎起来撒腿就跑
+  };
+  window.handleDragEnd = function(){
+    if(locked || sleeping) return;
+    setTimeout(function(){
+      if(!locked && !sleeping) setSprite('stand');
+    }, 600);
+  };
+  window.handleSingleClick = function(){
+    if(locked) return;
+    if(sleeping){ wake(); return; }
+    doAction(randomSprite(FUN), randomLine(), 3000);
+  };
+  window.handleDoubleClick = function(){
+    if(locked) return;
+    feed();
+  };
+
+  window.showSpeech  = showSpeech;
+  window.speakRandom = speakRandom;
+  window.feed        = feed;
+  window.toggleMode  = toggleMode;
+
+  // 偶尔自发说一句
+  setInterval(function(){
+    if(!speech.classList.contains('show') && !sleeping && !locked) speakRandom();
+  }, 55000);
+
+  // ===== Electron 输入层（与壳通信；无 Electron 时自动降级为仅点击预览）=====
+  (function bindElectronInput(){
+    if(!window.wc) return;                 // 纯浏览器预览：不挂拖拽，仅点击可用
+    var downX=0, downY=0, moved=0, draggingNow=false, suppressClick=false;
+    stage.addEventListener('pointerdown', function(e){
+      downX=e.clientX; downY=e.clientY; moved=0; draggingNow=false;
+      clearTimeout(idleTimer);
+      window.wc.dragBegin(e.clientX, e.clientY);
+    });
+    stage.addEventListener('pointermove', function(e){
+      moved += Math.abs(e.clientX-downX) + Math.abs(e.clientY-downY);
+      downX=e.clientX; downY=e.clientY;
+      if(moved>4 && !draggingNow){
+        draggingNow=true;
+        if(window.handleDragStart) window.handleDragStart();
+      }
+      if(draggingNow) window.wc.dragMove(e.clientX, e.clientY);
+    });
+    window.addEventListener('pointerup', function(){
+      if(draggingNow){
+        if(window.handleDragEnd) window.handleDragEnd();
+        window.wc.dragEnd();
+        suppressClick=true;                // 拖拽结束的 click 需吞掉
+      }
+      draggingNow=false;
+    });
+    stage.addEventListener('click', function(){
+      if(suppressClick){ suppressClick=false; return; }
+      if(window.handleSingleClick) window.handleSingleClick();
+    });
+    stage.addEventListener('dblclick', function(){
+      if(window.handleDoubleClick) window.handleDoubleClick();
+    });
+  })();
+})();
+</script>
+</body>
+</html>

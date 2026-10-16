@@ -1,0 +1,18 @@
+# 依赖（朋友机子上 npm install 即可重建）
+node_modules/
+
+# 构建产物（npm run dist:* 重新生成）
+dist-electron/
+*.zip
+
+# electron-builder 缓存 / 临时目录
+.ebcache/
+.tmpbuild/
+.electron-bin/
+
+# 会话中的测试碎片（不要进仓库）
+*.probe*
+*.tar
+neon.txt
+_2epyld4
+7j0leeqx
