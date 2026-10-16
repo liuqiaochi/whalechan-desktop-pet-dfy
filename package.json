@@ -16,7 +16,7 @@
     "productName": "鲸鱼娘桌宠",
     "copyright": "Copyright © 2026 laofei",
     "directories": {
-      "output": "dist-electron",
+      "output": "release",
       "buildResources": "build"
     },
     "files": [

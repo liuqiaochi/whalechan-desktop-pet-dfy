@@ -1,14 +1,20 @@
 # 依赖（朋友机子上 npm install 即可重建）
 node_modules/
 
-# 构建产物（npm run dist:* 重新生成）
+# 构建产物（重新生成即可）
+release/
 dist-electron/
+dist-win/
+dist-dev/
+dist-run/
+pkg-out*
 *.zip
 
 # electron-builder 缓存 / 临时目录
 .ebcache/
 .tmpbuild/
 .electron-bin/
+.electron-dist/
 
 # 会话中的测试碎片（不要进仓库）
 *.probe*
@@ -16,3 +22,11 @@ dist-electron/
 neon.txt
 _2epyld4
 7j0leeqx
+_e44/
+_e30/
+
+# start.bat 运行日志
+start.log*
+
+# 本地项目记忆（非源码，不进仓库）
+.workbuddy/

@@ -1,0 +1,34 @@
+MIT License
+
+Copyright (c) 2026 laofei
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+------------------------------------------------------------------------------
+
+注意（Notice）：
+
+本许可证（MIT）仅适用于本项目的**源代码**（main.js、preload.js、src/whalechan.html、
+package.js、package.bat、start.bat、make_icon.py 及本项目作者原创的脚本与配置）。
+
+项目中的美术素材（src/sprites/ 下的精灵图、build/ 与 src/ 下的图标等）来自社区资源 /
+官方样张，**其著作权归原作者或社区所有，不随本 MIT 许可证发布**。对这些素材的使用须遵循
+其原始许可与所在国家/地区的法律法规，且不得用于商业用途（除非另行取得权利人授权）。
+
+使用本项目即表示你已阅读并同意上述条款（详见 README「免责声明」与「开源与许可证」章节）。

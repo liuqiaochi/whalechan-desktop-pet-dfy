@@ -35,20 +35,9 @@ function createWindow() {
   win.on('closed', () => { win = null; });
 }
 
-// ---- 拖拽 IPC：绝对锚点法，避免抖动 ----
-let anchor = null;
-ipcMain.on('wc:drag-begin', (e, cx, cy) => {
-  if (!win) return;
-  const [wx, wy] = win.getPosition();
-  anchor = { wx, wy, cx, cy };
-});
-ipcMain.on('wc:drag-move', (e, cx, cy) => {
-  if (!win || !anchor) return;
-  const nx = anchor.wx + (cx - anchor.cx);
-  const ny = anchor.wy + (cy - anchor.cy);
-  win.setPosition(Math.round(nx), Math.round(ny));
-});
-ipcMain.on('wc:drag-end', () => { anchor = null; });
+// ---- 拖拽：窗口位移由 Electron 原生（-webkit-app-region: drag）交给系统完成 ----
+// 不经过任何坐标换算 / 轮询，因此不存在抖动、累积偏移或高分屏缩放错位的问题。
+// 主进程无需处理拖拽 IPC；形象切换（被拎起 / 落回）由渲染层鼠标事件触发。
 
 // ---- 托盘菜单（🐳）----
 function buildTray() {

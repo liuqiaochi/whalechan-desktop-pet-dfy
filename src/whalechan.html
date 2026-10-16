@@ -10,6 +10,7 @@
   body {
     font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
     -webkit-user-select:none; user-select:none; cursor:grab;
+    -webkit-app-region: drag;   /* Electron 原生拖拽：系统接管窗口位移 → 零抖动/零漂移 */
   }
   body.dragging { cursor:grabbing; }
 
@@ -37,12 +38,18 @@
   .pet {
     position:absolute; left:50%; bottom:4px; transform:translateX(-50%);
     z-index:2; pointer-events:none;
+    transition: transform .15s ease;
   }
   .pet img {
     display:block; max-height:238px; max-width:252px; width:auto; height:auto;
     filter:drop-shadow(0 6px 10px rgba(20,60,120,.30));
     animation:bob 3.2s ease-in-out infinite;
   }
+  /* 拖动中：图片贴到窗口顶部（配合主进程把窗口顶边对齐光标 → 图片顶端跟着鼠标）+
+     冻结 bob 动画 + 隐藏气泡；具体形象由 JS 强制锁定为 raise.png */
+  body.dragging .pet { top:0; bottom:auto; transform:translateX(-50%); }
+  body.dragging .pet img { animation:none; transform:none; }
+  body.dragging .bubbles { display:none; }
   .pet.happy img { animation:happy .55s ease; }
   @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
   @keyframes happy {
@@ -214,16 +221,19 @@
     doAction(SPRITES[spriteIdx], null, 3000);
   }
 
-  // ---- 原生层（Swift）回调：拖拽/点击全部由 AppKit 判定 ----
+  // ---- 拖拽开始/结束回调（由输入层触发）----
   window.handleDragStart = function(){
     clearTimeout(idleTimer);
-    if(!locked && !sleeping) setSprite('run');   // 被拎起来撒腿就跑
+    clearTimeout(actionTimer); actionTimer = null;   // 拖动期间不切换其它动作，避免闪烁
+    document.body.classList.add('dragging');         // 贴顶 + 冻结 bob + 隐藏气泡
+    petImg.src = 'sprites/raise.png';                // 强制「被拎起来」形象
   };
   window.handleDragEnd = function(){
+    document.body.classList.remove('dragging');
     if(locked || sleeping) return;
     setTimeout(function(){
-      if(!locked && !sleeping) setSprite('stand');
-    }, 600);
+      if(!locked && !sleeping) setSprite('stand');   // 停下落回默认形象
+    }, 250);
   };
   window.handleSingleClick = function(){
     if(locked) return;
@@ -245,37 +255,34 @@
     if(!speech.classList.contains('show') && !sleeping && !locked) speakRandom();
   }, 55000);
 
-  // ===== Electron 输入层（与壳通信；无 Electron 时自动降级为仅点击预览）=====
-  (function bindElectronInput(){
-    if(!window.wc) return;                 // 纯浏览器预览：不挂拖拽，仅点击可用
-    var downX=0, downY=0, moved=0, draggingNow=false, suppressClick=false;
-    stage.addEventListener('pointerdown', function(e){
-      downX=e.clientX; downY=e.clientY; moved=0; draggingNow=false;
+  // ===== 拖拽：Electron 原生窗口拖拽（-webkit-app-region: drag）=====
+  // 窗口实际位移完全由系统（OS）完成，不经过任何坐标换算 → 彻底杜绝抖动 / 越拖越偏 / 高分屏偏移。
+  // 这里只用鼠标事件判断「按住超过阈值」来切换「被拎起」形象；纯浏览器预览也可直接点击。
+  (function bindInput(){
+    var dragging = false, downTimer = null, suppressNextClick = false;
+    window.addEventListener('mousedown', function(e){
+      if(e.button !== 0) return;            // 仅左键
       clearTimeout(idleTimer);
-      window.wc.dragBegin(e.clientX, e.clientY);
-    });
-    stage.addEventListener('pointermove', function(e){
-      moved += Math.abs(e.clientX-downX) + Math.abs(e.clientY-downY);
-      downX=e.clientX; downY=e.clientY;
-      if(moved>4 && !draggingNow){
-        draggingNow=true;
+      // 按住约 140ms 视为开始拖拽（系统原生拖拽已接管位移），切换「被拎起」形象
+      downTimer = setTimeout(function(){
+        dragging = true;
         if(window.handleDragStart) window.handleDragStart();
-      }
-      if(draggingNow) window.wc.dragMove(e.clientX, e.clientY);
+      }, 140);
     });
-    window.addEventListener('pointerup', function(){
-      if(draggingNow){
+    function endPress(){
+      if(downTimer){ clearTimeout(downTimer); downTimer = null; }
+      if(dragging){
+        dragging = false;
+        suppressNextClick = true;           // 拖拽结束后的 click 不触发发言
         if(window.handleDragEnd) window.handleDragEnd();
-        window.wc.dragEnd();
-        suppressClick=true;                // 拖拽结束的 click 需吞掉
       }
-      draggingNow=false;
-    });
-    stage.addEventListener('click', function(){
-      if(suppressClick){ suppressClick=false; return; }
+    }
+    window.addEventListener('mouseup', endPress);
+    window.addEventListener('click', function(){
+      if(suppressNextClick){ suppressNextClick = false; return; }
       if(window.handleSingleClick) window.handleSingleClick();
     });
-    stage.addEventListener('dblclick', function(){
+    window.addEventListener('dblclick', function(){
       if(window.handleDoubleClick) window.handleDoubleClick();
     });
   })();
