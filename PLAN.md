@@ -23,12 +23,14 @@
 | 拖拽 | **渲染层判定 + 主进程增量定位**：左键位移 > 5px 判定拖动；主进程以 drag-begin 时的窗口位置与光标位置为基准按增量 `setPosition`（delta 定位，不假设尺寸/DPI、跨次不累积）。"拎起"形象（`raise.png`）由 JS 切换 | `src/whalechan.html`（pointer 判定）、`main.js`（`wc:drag-begin/end` + 增量轮询）、`preload.js`（dragBegin/dragEnd 桥接） |
 | 表现层 | 13 张透明 PNG 姿势精灵 + CSS `bob` 呼吸 + 气泡 + 米饭粒子 | `src/whalechan.html`、`src/sprites/*.png` |
 | 状态机 | `locked` / `sleeping` / `actionTimer` / `idleTimer`，闲置 **50s** → `sleep.png` | `whalechan.html:155-214` |
-| 菜单 | **仅托盘菜单**（说点什么 / 喂饭 / 切换姿势 / 鼠标穿透 / 退出），手动改 `m.items[4].label` | `main.js:50-79` |
+| 菜单 | 托盘菜单与**宠物本体右键菜单共用 `buildPetMenu()` 同一模板**（说点什么 / 喂饭 / 切换姿势 / 鼠标穿透 / 退出）；已移除 `m.items[4].label` 硬编码写法 | `main.js`（`buildPetMenu` / `wc:context-menu`） |
+| 透明区穿透 | **逐像素点击穿透**：按精灵 alpha 遮罩判定，只有角色不透明像素接收鼠标，透明空白自动放行给下层窗口（解决空白区挡点击） | `src/alpha-masks.js`（`make_alpha.py` 生成）、`whalechan.html`（查表 + `setIgnoreMouse`）、`main.js`（`applyIgnoreMouse`） |
 | 打包 | `package.json` 三脚本 + `package.js` 自动识别平台 + `package.bat` / `start.bat` | 根目录 |
 
-#### 1.1.1 当前已知问题（截至 2026-10-17）
+#### 1.1.1 关键演进与已知问题（截至 2026-10-17）
 
-- **拖拽：改为「渲染层判定 + 主进程增量定位」，并修复原生拖拽回归**：演进路径 ① 主进程轮询 `screen.getCursorScreenPoint()` 绝对定位 → ② 渲染层发 `e.screenX/Y` 绝对定位 → ③ 原生 `-webkit-app-region: drag` → ④ **当前方案**：渲染层判定（左键位移 > 5px 才开始拖动）+ 主进程以 drag-begin 时的「窗口位置 & 光标位置」为基准、按光标位移增量 `setPosition`（delta 定位，不假设窗口尺寸/DPI，跨次不累积）。**弃用 ③ 的原因**：原生拖拽区会吞掉全部鼠标事件，导致 `click` / `contextmenu` 失效（气泡、换形象、右键菜单全部不响应）。**待用户本地用 `start.bat` 实测确认偏移是否彻底消失**。
+- **拖拽（已解决，用户实测通过）**：演进路径 ① 主进程轮询 `screen.getCursorScreenPoint()` 绝对定位 → ② 渲染层发 `e.screenX/Y` 绝对定位 → ③ 原生 `-webkit-app-region: drag` → ④ **当前方案**：渲染层判定（左键位移 > 5px 才开始拖动）+ 主进程以 drag-begin 时的「窗口位置 & 光标位置」为基准、按光标位移增量 `setPosition`（delta 定位，不假设窗口尺寸/DPI，跨次不累积）。弃用 ③ 的原因：原生拖拽区会吞掉全部鼠标事件，导致 `click` / `contextmenu` 失效。
+- **透明空白区挡点击（已解决）**：窗口为 260×330 矩形而角色只占一部分，透明区仍参与系统命中。已实现**逐像素点击穿透**（alpha 遮罩查表 + `setIgnoreMouseEvents`），空白处点击直接落到下层窗口。
 - **本机 Electron 运行时版本错位**：`node_modules/electron/dist` 实际为 `v24.22.0`，而 `package.json` 声明 `^44.8.0`（旧缓存所致）。本机出包按 24.22.0 运行，Mac 端构建会按 44.8.0 重新拉取、不受影响。
 - **旧构建目录被系统持锁**：`.electron-dist` / `dist-*` / `release` 等 8 个目录被 Windows Defender 实时扫描持锁（EBUSY），已登记"重启时移出项目"，重启一次即可彻底清理（已在 `.gitignore`）。
 

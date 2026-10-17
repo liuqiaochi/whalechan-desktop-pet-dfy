@@ -97,12 +97,59 @@
   <div class="speech" id="speech"></div>
 </div>
 
+<!-- 逐像素点击穿透用的 alpha 遮罩（由 make_alpha.py 生成） -->
+<script src="alpha-masks.js"></script>
+
 <script>
 (function(){
   var stage  = document.getElementById('stage');
   var pet    = document.getElementById('pet');
   var petImg = document.getElementById('petImg');
   var speech = document.getElementById('speech');
+
+  // ---- 逐像素点击穿透 ----
+  // 窗口是 260x330 的矩形，但角色只占一部分；透明区域若参与命中会挡住下层窗口点击。
+  // 这里用每个精灵的 alpha 遮罩：光标落在透明格子 → 请求忽略鼠标（穿透）；落在角色上 → 恢复接收。
+  var MASKS = (window.ALPHA_MASKS && window.ALPHA_MASKS.masks) || {};
+  var maskCache = {};
+  var curMask = null;
+  var lastIgnore = null;
+
+  function getMask(name){
+    if(Object.prototype.hasOwnProperty.call(maskCache, name)) return maskCache[name];
+    var src = MASKS[name];
+    if(!src){ maskCache[name] = null; return null; }
+    var bin = atob(src.b64);
+    var total = src.cols * src.rows;
+    var data = new Uint8Array(total);
+    for(var i = 0; i < total; i++){
+      data[i] = (bin.charCodeAt(i >> 3) >> (7 - (i & 7))) & 1;
+    }
+    maskCache[name] = { cols: src.cols, rows: src.rows, data: data };
+    return maskCache[name];
+  }
+
+  function isOpaqueAt(cx, cy){
+    var m = curMask;
+    if(!m) return true;                        // 无遮罩时保守处理：视为不透明（可点击）
+    var r = petImg.getBoundingClientRect();
+    if(r.width <= 0 || r.height <= 0) return false;
+    var rx = (cx - r.left) / r.width;
+    var ry = (cy - r.top) / r.height;
+    if(rx < 0 || rx >= 1 || ry < 0 || ry >= 1) return false;
+    var mx = Math.min(m.cols - 1, Math.floor(rx * m.cols));
+    var my = Math.min(m.rows - 1, Math.floor(ry * m.rows));
+    return m.data[my * m.cols + mx] === 1;
+  }
+
+  function requestIgnore(ignore){
+    if(!window.wc || !window.wc.setIgnoreMouse) return;
+    if(ignore === lastIgnore) return;          // 仅在状态变化时发 IPC，避免高频通信
+    lastIgnore = ignore;
+    window.wc.setIgnoreMouse(ignore);
+  }
+
+  curMask = getMask('stand');                  // 初始形象为 stand.png
 
   // 官方参考图集裁切的 12 个姿势精灵
   var SPRITES = ['stand','bow','jump','run','think','conduct',
@@ -130,6 +177,7 @@
   function setSprite(name){
     sleeping = (name === 'sleep');
     petImg.src = 'sprites/' + name + '.png';
+    curMask = getMask(name);                   // 同步切换点击穿透遮罩
   }
   function randomSprite(pool){
     var p = pool || SPRITES;
@@ -225,8 +273,9 @@
   window.handleDragStart = function(){
     clearTimeout(idleTimer);
     clearTimeout(actionTimer); actionTimer = null;   // 拖动期间不切换其它动作，避免闪烁
-    document.body.classList.add('dragging');         // 贴顶 + 冻结 bob + 隐藏气泡
+    document.body.classList.add('dragging');         // 冻结 bob + 隐藏气泡
     petImg.src = 'sprites/raise.png';                // 强制「被拎起来」形象
+    curMask = getMask('raise');                      // 同步切换点击穿透遮罩
   };
   window.handleDragEnd = function(){
     document.body.classList.remove('dragging');
@@ -309,6 +358,15 @@
     stage.addEventListener('contextmenu', function(e){
       e.preventDefault();
       if(window.wc && window.wc.showContextMenu) window.wc.showContextMenu();
+    });
+
+    // 逐像素点击穿透：透明处 → 忽略鼠标（放行给下层窗口）；角色身上 → 恢复接收
+    window.addEventListener('mousemove', function(e){
+      if(draggingNow) return;                  // 拖动中保持接收，避免中途失效
+      requestIgnore(!isOpaqueAt(e.clientX, e.clientY));
+    });
+    document.addEventListener('mouseleave', function(){
+      if(!draggingNow) requestIgnore(true);    // 光标离开窗口：不占用下层
     });
   })();
 })();

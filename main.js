@@ -3,7 +3,8 @@ const path = require('path');
 
 let win = null;
 let tray = null;
-let clickThrough = false;
+let clickThrough = false;   // 菜单「鼠标穿透」：强制整窗穿透（用户显式开启）
+let alphaIgnore = false;    // 逐像素穿透：光标位于角色透明处时的临时穿透
 
 function createWindow() {
   win = new BrowserWindow({
@@ -66,6 +67,20 @@ ipcMain.on('wc:drag-begin', () => {
 
 ipcMain.on('wc:drag-end', () => { stopDrag(); });
 
+// ---- 逐像素点击穿透 ----
+// 渲染层根据当前精灵的 alpha 遮罩判断光标是否落在角色不透明处：
+// 落在透明处 → 请求忽略鼠标（点击穿透到下层窗口）；落在角色身上 → 恢复接收。
+// 与菜单「鼠标穿透」（clickThrough）取「或」：任一为真则整窗穿透。
+function applyIgnoreMouse() {
+  if (!win) return;
+  win.setIgnoreMouseEvents(clickThrough || alphaIgnore, { forward: true });
+}
+
+ipcMain.on('wc:set-ignore-mouse', (evt, ignore) => {
+  alphaIgnore = !!ignore;
+  applyIgnoreMouse();
+});
+
 // ---- 宠物菜单：托盘右键与宠物本体右键共用同一份模板，保证完全一致 ----
 function buildPetMenu() {
   const invoke = (code) => { if (win) win.webContents.executeJavaScript(code); };
@@ -98,7 +113,7 @@ function buildTray() {
 
 function toggleThrough() {
   clickThrough = !clickThrough;
-  if (win) win.setIgnoreMouseEvents(clickThrough, { forward: true });
+  applyIgnoreMouse();
   if (tray) tray.setContextMenu(buildPetMenu());   // 重建菜单以刷新「鼠标穿透」文案
 }
 

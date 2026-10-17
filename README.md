@@ -14,15 +14,17 @@
 ```
 whalechan-desktop-pet-dfy/
 ├── main.js              # Electron 主进程：透明置顶窗 + 托盘🐳菜单（拖拽：按光标增量移动窗口）
-├── preload.js           # 安全桥接（contextIsolation）：仅暴露 dragBegin / dragEnd 两个原语
+├── preload.js           # 安全桥接（contextIsolation）：dragBegin / dragEnd / showContextMenu / setIgnoreMouse
 ├── package.json         # 依赖 + 构建脚本 + electron-builder 配置
 ├── package.js           # 一键打包：自动识别系统，输出到 release/（带锁自动兜底）
 ├── package.bat          # Windows 双击一键打包
 ├── start.bat            # Windows 免安装快速运行（直接用本地 Electron 跑源码，不打包）
 ├── make_icon.py         # 生成托盘/应用图标（png/ico/icns）
+├── make_alpha.py        # 生成逐像素点击穿透遮罩 src/alpha-masks.js（精灵变更后需重跑）
 ├── build/               # 图标资源（icon.png / icon.ico / icon.icns + 母版 + 来源 logo）
 ├── src/
 │   ├── whalechan.html   # 桌宠本体：SVG 容器 + 13 精灵 + 状态机 + 交互
+│   ├── alpha-masks.js   # 逐像素点击穿透遮罩（make_alpha.py 生成，勿手改）
 │   ├── tray.png / tray@2x.png  # 托盘小图标
 │   └── sprites/         # 13 个姿势精灵（透明 PNG）+ 一张拼图（不打包）
 └── LICENSE              # 代码许可证（MIT）
@@ -118,6 +120,7 @@ npm run dist        # 双平台（mac + win）
 | 单击 | 随机切换姿势 + 说一句台词（3 秒后恢复站立） |
 | 双击 | 喂白米饭🍚（补给姿势，3 秒内点击无效，自动恢复） |
 | 闲置 50 秒 | 自动进入「休息」睡觉💤，点击唤醒 |
+| 透明区域 | 自动点击穿透：只有角色不透明像素接收鼠标，空白处点击直接落到下层窗口 |
 | 托盘🐳菜单 | 说点什么 / 喂饭 / 切换姿势 / 鼠标穿透开关 / 退出 |
 | 点击托盘图标 | 快速切换鼠标穿透（穿透时点击会穿过桌宠落到下层窗口） |
 
@@ -180,9 +183,13 @@ A：多为杀软（如 Windows Defender）对 `*.asar` 的实时扫描持锁所�
 A：未签名 DMG 会被 Gatekeeper 拦。在「系统设置 → 隐私与安全性」里找到被拦截的记录，点击「仍要打开」即可。
 如需彻底免拦，需自行申请 Apple Developer 证书签名。
 
+**Q：桌宠周围的空白区域会挡住下层窗口的点击？**
+A：已内置**逐像素点击穿透**——按每个精灵的 alpha 遮罩判定，只有角色不透明像素才接收鼠标，透明区域自动放行给下层窗口。
+若更换 / 新增精灵后穿透区域与形象不符，请重新运行 `python make_alpha.py` 生成 `src/alpha-masks.js`。
+
 **Q：想换掉鲸鱼娘形象？**
-A：替换 `src/sprites/` 下对应姿势 PNG 即可（建议保持透明背景、尺寸一致）；托盘图标换 `src/tray.png`、`tray@2x.png`；
-应用图标换 `build/` 后运行 `python3 make_icon.py` 重新生成。
+A：替换 `src/sprites/` 下对应姿势 PNG 即可（建议保持透明背景、尺寸一致），并运行 `python make_alpha.py` 重建点击遮罩；
+托盘图标换 `src/tray.png`、`tray@2x.png`；应用图标换 `build/` 后运行 `python3 make_icon.py` 重新生成。
 
 ---
 
