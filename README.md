@@ -13,7 +13,7 @@
 
 ```
 whalechan-desktop-pet-dfy/
-├── main.js              # Electron 主进程：透明置顶窗 + 托盘🐳菜单（拖拽交给系统原生接管）
+├── main.js              # Electron 主进程：透明置顶窗 + 托盘🐳菜单（拖拽：按光标增量移动窗口）
 ├── preload.js           # 安全桥接（contextIsolation）：仅暴露 dragBegin / dragEnd 两个原语
 ├── package.json         # 依赖 + 构建脚本 + electron-builder 配置
 ├── package.js           # 一键打包：自动识别系统，输出到 release/（带锁自动兜底）
@@ -114,7 +114,7 @@ npm run dist        # 双平台（mac + win）
 
 | 操作 | 效果 |
 |------|------|
-| 拖动 | 鲸鱼娘被拎起来撒腿奔跑（Electron 原生窗口拖拽，零抖动零漂移） |
+| 拖动 | 鲸鱼娘被拎起来撒腿奔跑（渲染层判定 + 主进程按光标增量移动窗口，跨次不累积偏移） |
 | 单击 | 随机切换姿势 + 说一句台词（3 秒后恢复站立） |
 | 双击 | 喂白米饭🍚（补给姿势，3 秒内点击无效，自动恢复） |
 | 闲置 50 秒 | 自动进入「休息」睡觉💤，点击唤醒 |

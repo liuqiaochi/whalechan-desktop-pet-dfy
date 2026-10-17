@@ -10,7 +10,8 @@
   body {
     font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
     -webkit-user-select:none; user-select:none; cursor:grab;
-    -webkit-app-region: drag;   /* Electron 原生拖拽：系统接管窗口位移 → 零抖动/零漂移 */
+    /* 注意：不要加 -webkit-app-region: drag —— 可拖拽区域会吞掉全部鼠标事件，
+       导致 click / contextmenu 失效（气泡、换形象、右键菜单都不响应）。 */
   }
   body.dragging { cursor:grabbing; }
 
@@ -45,9 +46,8 @@
     filter:drop-shadow(0 6px 10px rgba(20,60,120,.30));
     animation:bob 3.2s ease-in-out infinite;
   }
-  /* 拖动中：图片贴到窗口顶部（配合主进程把窗口顶边对齐光标 → 图片顶端跟着鼠标）+
-     冻结 bob 动画 + 隐藏气泡；具体形象由 JS 强制锁定为 raise.png */
-  body.dragging .pet { top:0; bottom:auto; transform:translateX(-50%); }
+  /* 拖动中：窗口按光标增量整体平移，图片相对窗口位置不变 → 抓取点自然跟随光标。
+     只需冻结 bob 动画 + 隐藏气泡，形象由 JS 切到 raise.png */
   body.dragging .pet img { animation:none; transform:none; }
   body.dragging .bubbles { display:none; }
   .pet.happy img { animation:happy .55s ease; }
@@ -234,11 +234,13 @@
     setTimeout(function(){
       if(!locked && !sleeping) setSprite('stand');   // 停下落回默认形象
     }, 250);
+    scheduleIdle();                                   // 交互后重新计时，睡眠逻辑不失效
   };
   window.handleSingleClick = function(){
     if(locked) return;
     if(sleeping){ wake(); return; }
     doAction(randomSprite(FUN), randomLine(), 3000);
+    scheduleIdle();                                   // 交互后重新计时
   };
   window.handleDoubleClick = function(){
     if(locked) return;
@@ -255,35 +257,58 @@
     if(!speech.classList.contains('show') && !sleeping && !locked) speakRandom();
   }, 55000);
 
-  // ===== 拖拽：Electron 原生窗口拖拽（-webkit-app-region: drag）=====
-  // 窗口实际位移完全由系统（OS）完成，不经过任何坐标换算 → 彻底杜绝抖动 / 越拖越偏 / 高分屏偏移。
-  // 这里只用鼠标事件判断「按住超过阈值」来切换「被拎起」形象；纯浏览器预览也可直接点击。
+  // ===== 输入层：拖拽 / 单击 / 双击 / 右键菜单 =====
+  // 拖拽：渲染层判定「左键按下后位移 > 5px」即开始，通知主进程按光标增量移动窗口
+  //       （窗口移动由主进程轮询光标完成，避免「窗口跟着光标走导致 pointermove 不再触发」的问题）。
+  // 单击/双击：未发生拖动时才触发；拖动结束后的 click 被抑制。
+  // 右键：阻止默认菜单，交给主进程弹出与托盘一致的菜单。
   (function bindInput(){
-    var dragging = false, downTimer = null, suppressNextClick = false;
-    window.addEventListener('mousedown', function(e){
-      if(e.button !== 0) return;            // 仅左键
+    var pointerDown = false, draggingNow = false, suppressClick = false;
+    var startX = 0, startY = 0;
+
+    stage.addEventListener('pointerdown', function(e){
+      if(e.button !== 0) return;                 // 仅左键
+      pointerDown = true; draggingNow = false; suppressClick = false;
+      startX = e.screenX; startY = e.screenY;
       clearTimeout(idleTimer);
-      // 按住约 140ms 视为开始拖拽（系统原生拖拽已接管位移），切换「被拎起」形象
-      downTimer = setTimeout(function(){
-        dragging = true;
-        if(window.handleDragStart) window.handleDragStart();
-      }, 140);
+      try { stage.setPointerCapture(e.pointerId); } catch(_) {}  // 移出窗口也能收到 pointerup
     });
-    function endPress(){
-      if(downTimer){ clearTimeout(downTimer); downTimer = null; }
-      if(dragging){
-        dragging = false;
-        suppressNextClick = true;           // 拖拽结束后的 click 不触发发言
-        if(window.handleDragEnd) window.handleDragEnd();
+
+    stage.addEventListener('pointermove', function(e){
+      if(!pointerDown || draggingNow) return;
+      var dx = e.screenX - startX, dy = e.screenY - startY;
+      if(Math.sqrt(dx*dx + dy*dy) > 5){          // 超过阈值才判定为拖动，普通点击不黏住鼠标
+        draggingNow = true; suppressClick = true;
+        if(window.handleDragStart) window.handleDragStart();      // 切 raise.png + 冻结 bob
+        if(window.wc && window.wc.dragBegin) window.wc.dragBegin(); // 主进程开始增量移动窗口
+      }
+    });
+
+    function finishPress(e){
+      if(!pointerDown) return;
+      pointerDown = false;
+      try { stage.releasePointerCapture(e.pointerId); } catch(_) {}
+      if(draggingNow){
+        draggingNow = false;
+        if(window.wc && window.wc.dragEnd) window.wc.dragEnd();   // 停止移动窗口
+        if(window.handleDragEnd) window.handleDragEnd();          // 落回默认形象
       }
     }
-    window.addEventListener('mouseup', endPress);
-    window.addEventListener('click', function(){
-      if(suppressNextClick){ suppressNextClick = false; return; }
+    stage.addEventListener('pointerup', finishPress);
+    stage.addEventListener('pointercancel', finishPress);
+    stage.addEventListener('lostpointercapture', finishPress);   // 兜底：指针捕获丢失时也结束拖拽
+
+    stage.addEventListener('click', function(){
+      if(suppressClick){ suppressClick = false; return; }
       if(window.handleSingleClick) window.handleSingleClick();
     });
-    window.addEventListener('dblclick', function(){
+    stage.addEventListener('dblclick', function(){
+      if(suppressClick) return;
       if(window.handleDoubleClick) window.handleDoubleClick();
+    });
+    stage.addEventListener('contextmenu', function(e){
+      e.preventDefault();
+      if(window.wc && window.wc.showContextMenu) window.wc.showContextMenu();
     });
   })();
 })();

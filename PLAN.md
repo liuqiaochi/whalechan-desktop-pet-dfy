@@ -20,7 +20,7 @@
 |------|------|------|
 | 窗口 | 260×330 透明、无边框、`alwaysOnTop:true`、`skipTaskbar:true`、不进 Dock（`app.dock.hide()` 运行时隐藏） | `main.js:8-36` |
 | 定位 | 固定右下角 `screen.getPrimaryDisplay().workAreaSize` | `main.js:29-30` |
-| 拖拽 | 已迁移至 **Electron 原生拖拽**（`body { -webkit-app-region: drag }`，窗口位移由系统接管 → 零坐标计算、零抖动、高分屏无关）；"拎起"形象切换（`raise.png`）仍由 JS 控制 | `src/whalechan.html`（`-webkit-app-region: drag` + mousedown/up 判定）；`main.js` 已移除全部拖拽 IPC |
+| 拖拽 | **渲染层判定 + 主进程增量定位**：左键位移 > 5px 判定拖动；主进程以 drag-begin 时的窗口位置与光标位置为基准按增量 `setPosition`（delta 定位，不假设尺寸/DPI、跨次不累积）。"拎起"形象（`raise.png`）由 JS 切换 | `src/whalechan.html`（pointer 判定）、`main.js`（`wc:drag-begin/end` + 增量轮询）、`preload.js`（dragBegin/dragEnd 桥接） |
 | 表现层 | 13 张透明 PNG 姿势精灵 + CSS `bob` 呼吸 + 气泡 + 米饭粒子 | `src/whalechan.html`、`src/sprites/*.png` |
 | 状态机 | `locked` / `sleeping` / `actionTimer` / `idleTimer`，闲置 **50s** → `sleep.png` | `whalechan.html:155-214` |
 | 菜单 | **仅托盘菜单**（说点什么 / 喂饭 / 切换姿势 / 鼠标穿透 / 退出），手动改 `m.items[4].label` | `main.js:50-79` |
@@ -28,7 +28,7 @@
 
 #### 1.1.1 当前已知问题（截至 2026-10-17）
 
-- **拖拽偏移（待修复）**：用户反馈拖动后"形象越来越往左偏、右侧与下方出现隐藏区且累积扩大"。已实施三轮修复：① 主进程轮询 `screen.getCursorScreenPoint()` → ② 渲染层发 `e.screenX/Y` 绝对坐标 → ③ 改用 **原生 `-webkit-app-region: drag`**（窗口位移完全由系统接管，不经过任何坐标计算）。第③版已随提交 `b72bdd3` 进主干，**待用户在本地用 `start.bat` 实测确认**。疑似根因：用户运行环境为**多显示器 / DPI ≠ 100%**，或仍在跑旧打包 `.exe`（旧构建未含任何拖拽修复，须 `package.bat` 重新打包）。**明日（10-18）继续排查**。
+- **拖拽：改为「渲染层判定 + 主进程增量定位」，并修复原生拖拽回归**：演进路径 ① 主进程轮询 `screen.getCursorScreenPoint()` 绝对定位 → ② 渲染层发 `e.screenX/Y` 绝对定位 → ③ 原生 `-webkit-app-region: drag` → ④ **当前方案**：渲染层判定（左键位移 > 5px 才开始拖动）+ 主进程以 drag-begin 时的「窗口位置 & 光标位置」为基准、按光标位移增量 `setPosition`（delta 定位，不假设窗口尺寸/DPI，跨次不累积）。**弃用 ③ 的原因**：原生拖拽区会吞掉全部鼠标事件，导致 `click` / `contextmenu` 失效（气泡、换形象、右键菜单全部不响应）。**待用户本地用 `start.bat` 实测确认偏移是否彻底消失**。
 - **本机 Electron 运行时版本错位**：`node_modules/electron/dist` 实际为 `v24.22.0`，而 `package.json` 声明 `^44.8.0`（旧缓存所致）。本机出包按 24.22.0 运行，Mac 端构建会按 44.8.0 重新拉取、不受影响。
 - **旧构建目录被系统持锁**：`.electron-dist` / `dist-*` / `release` 等 8 个目录被 Windows Defender 实时扫描持锁（EBUSY），已登记"重启时移出项目"，重启一次即可彻底清理（已在 `.gitignore`）。
 
@@ -361,7 +361,7 @@ protocol.handle('app', (req) =>
 一期窗口 260×330 是围绕 PNG 精灵定的。Live2D 模型画布通常 1024×1024 级别，需要：
 
 - 窗口尺寸改为**由角色配置驱动**（`character.json` 里定义 `stageSize / scale / anchor`）
-- **拖拽语义**：采用原生 `-webkit-app-region: drag`，窗口位移由系统接管（不再由 `main.js` 计算 `x - ww/2` 坐标）；用户抓住哪里、哪里跟随光标。Live2D 接入时同此机制，无需重写拖拽栈
+- **拖拽语义**：渲染层判定拖动后，主进程按光标位移增量移动窗口（delta 定位，抓住哪里哪里跟随光标，跨次不累积偏移）；Live2D 接入时沿用该机制，无需重写拖拽栈
 - 透明区域过大 → 遮挡下层窗口点击。进阶方案：**像素级穿透** —— 主进程 `setIgnoreMouseEvents(true,{forward:true})`，渲染层用 `model.hitTest(x,y)` 判断光标是否落在模型轮廓内，命中则临时关闭穿透。**列为 M4 的可选项**，不阻塞主线。
 
 ### 6.4 实施步骤（PoC 优先，逐层递进）

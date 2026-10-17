@@ -1,5 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// 桌宠的窗口拖拽已改用 Electron 原生（-webkit-app-region: drag），由系统接管位移，
-// 不再需要渲染层与主进程通信来驱动拖拽，故此处不暴露任何拖拽桥接。
-contextBridge.exposeInMainWorld('wc', {});
+// 渲染层通知「拖拽开始/结束」：主进程按光标位移增量移动窗口（delta 定位，无累积偏差）。
+// 右键菜单：渲染层只发信号，实际菜单由主进程用与托盘一致的模板弹出。
+contextBridge.exposeInMainWorld('wc', {
+  dragBegin:       () => ipcRenderer.send('wc:drag-begin'),
+  dragEnd:         () => ipcRenderer.send('wc:drag-end'),
+  showContextMenu: () => ipcRenderer.send('wc:context-menu'),
+});
