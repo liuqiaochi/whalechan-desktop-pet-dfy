@@ -6,7 +6,9 @@
 <title>鲸鱼娘桌宠</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  html, body { width:260px; height:330px; overflow:hidden; background:transparent; }
+  /* 窗口 300×380（原 260×330）：为「吃饱变胖」的形体放大预留 15% 余量，
+     否则等比放大后图片会超出窗口被 overflow:hidden 裁掉。 */
+  html, body { width:300px; height:380px; overflow:hidden; background:transparent; }
   body {
     font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
     -webkit-user-select:none; user-select:none; cursor:grab;
@@ -15,7 +17,7 @@
   }
   body.dragging { cursor:grabbing; }
 
-  .stage { position:relative; width:260px; height:330px; touch-action:none; }
+  .stage { position:relative; width:300px; height:380px; touch-action:none; }
   .pet img, .rice, .speech { -webkit-user-drag:none; user-drag:none; user-select:none; }
 
   /* 气泡 */
@@ -25,24 +27,30 @@
     background:radial-gradient(circle at 30% 30%, #ffffffcc, #9fd0ff66);
     animation:rise 4.5s linear infinite;
   }
-  .bubbles span:nth-child(1){ left:70px;  animation-delay:0s;   }
-  .bubbles span:nth-child(2){ left:130px; width:7px; height:7px; animation-delay:1.4s; }
-  .bubbles span:nth-child(3){ left:190px; width:12px;height:12px;animation-delay:2.6s; }
-  .bubbles span:nth-child(4){ left:40px;  width:6px; height:6px; animation-delay:3.4s; }
+  .bubbles span:nth-child(1){ left:80px;  animation-delay:0s;   }
+  .bubbles span:nth-child(2){ left:150px; width:7px; height:7px; animation-delay:1.4s; }
+  .bubbles span:nth-child(3){ left:220px; width:12px;height:12px;animation-delay:2.6s; }
+  .bubbles span:nth-child(4){ left:50px;  width:6px; height:6px; animation-delay:3.4s; }
   @keyframes rise {
     0%   { transform:translateY(0)   scale(0.6); opacity:0; }
     15%  { opacity:.75; }
     100% { transform:translateY(-90px) scale(1); opacity:0; }
   }
 
-  /* 精灵（官方立绘裁切） */
+  /* 精灵（官方立绘裁切）
+     缩放放在 .pet 容器上而不是 img 上：img 上有 bob / happy 两个 keyframes 会覆盖
+     inline transform，放容器才不会被动画吃掉。transform-origin 取底部中心，
+     放大时向上长，不会把脚顶出窗口。
+     两个轴分开给：胖度越过阈值后横向加宽、纵向回压，看起来是「胖」而不是「放大」。 */
   .pet {
-    position:absolute; left:50%; bottom:4px; transform:translateX(-50%);
+    position:absolute; left:50%; bottom:4px;
+    transform:translateX(-50%) scale(var(--chubby-x, 1), var(--chubby-y, 1));
+    transform-origin: bottom center;
     z-index:2; pointer-events:none;
-    transition: transform .15s ease;
+    transition: transform .6s ease;
   }
   .pet img {
-    display:block; max-height:238px; max-width:252px; width:auto; height:auto;
+    display:block; max-height:232px; max-width:245px; width:auto; height:auto;
     filter:drop-shadow(0 6px 10px rgba(20,60,120,.30));
     animation:bob 3.2s ease-in-out infinite;
   }
@@ -51,6 +59,8 @@
   body.dragging .pet img { animation:none; transform:none; }
   body.dragging .bubbles { display:none; }
   .pet.happy img { animation:happy .55s ease; }
+  /* 吃胖之后影子重一点，配合横向加宽/纵向回压的「沉」感 */
+  .pet.fat img { filter:drop-shadow(0 8px 12px rgba(20,60,120,.38)); }
   @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
   @keyframes happy {
     0%{transform:scale(1)} 28%{transform:scale(1.1,.9)}
@@ -72,7 +82,7 @@
   /* 对话气泡（窗口内顶部） */
   .speech {
     position:absolute; left:50%; top:8px; transform:translate(-50%,0) scale(.85);
-    min-width:80px; max-width:236px; padding:8px 12px;
+    min-width:80px; max-width:272px; padding:8px 12px;
     background:#fff; color:#1b3a6b; font-size:13px; line-height:1.45; font-weight:600;
     border-radius:14px; box-shadow:0 6px 18px rgba(20,60,120,.28);
     border:2px solid #bcd9ff; text-align:center;
@@ -220,14 +230,7 @@
     }, ms);
   }
 
-  function feed(){
-    if(locked) return;
-    locked = true;
-    sleeping = false;
-    clearAction();
-    setSprite('eat');
-    showSpeech("吃饭的时候不谈逻辑！🍚", 3000);
-    pet.classList.remove('happy'); void pet.offsetWidth; pet.classList.add('happy');
+  function spawnRiceParticles(){
     for(var i=0;i<3;i++){
       (function(i){
         var r = document.createElement('div');
@@ -237,6 +240,34 @@
         setTimeout(function(){ r.remove(); }, 1200);
       })(i);
     }
+  }
+
+  // 喂饭：白饭 → 心情 + 胖度。扣款在渲染层做不了，必须走主进程（唯一账本）。
+  // 白饭不足时**仍然播吃动画**，只换台词 —— 把核心互动变成一堵墙是最容易犯的错。
+  function feed(){
+    if(locked) return;
+    locked = true;
+    sleeping = false;
+    clearAction();
+    setSprite('eat');
+    pet.classList.remove('happy'); void pet.offsetWidth; pet.classList.add('happy');
+    spawnRiceParticles();
+
+    if(window.wc && window.wc.feed){
+      window.wc.feed().then(function(r){
+        if(r && r.ok){
+          showSpeech("吃饭的时候不谈逻辑！🍚", 3000);
+          applyChubby(r);
+        } else {
+          showSpeech("钱包空空…要不要去玩个小游戏？", 3200);
+        }
+      }).catch(function(){
+        showSpeech("吃饭的时候不谈逻辑！🍚", 3000);
+      });
+    } else {
+      showSpeech("吃饭的时候不谈逻辑！🍚", 3000);
+    }
+
     setTimeout(function(){          // 吃 3 秒，自动恢复默认形象
       locked = false;
       setSprite('stand');
@@ -252,6 +283,7 @@
 
   // 闲置 -> 睡觉
   var idleTimer = null;
+  var mood = 60;                     // 由主进程同步；只影响「多爱说话」，不产生任何减益
   function scheduleIdle(){
     clearTimeout(idleTimer);
     idleTimer = setTimeout(function(){
@@ -261,6 +293,22 @@
     }, 50000);
   }
   scheduleIdle();
+
+  // 自发搭话：心情越高越爱说话（90s → 35s）。
+  // 注意这里是「更容易发生」，不是「必然发生」；心情低也不会更少，只是回到默认节奏。
+  var chatTimer = null;
+  function chatInterval(){
+    var m = Math.min(100, Math.max(30, mood));
+    return Math.round(90000 - (m - 30) / 70 * 55000);
+  }
+  function scheduleChat(){
+    clearTimeout(chatTimer);
+    chatTimer = setTimeout(function(){
+      if(!speech.classList.contains('show') && !sleeping && !locked) speakRandom();
+      scheduleChat();
+    }, chatInterval());
+  }
+  scheduleChat();
 
   // 菜单「切换姿势」：循环所有精灵
   function toggleMode(){
@@ -301,10 +349,51 @@
   window.feed        = feed;
   window.toggleMode  = toggleMode;
 
-  // 偶尔自发说一句
-  setInterval(function(){
-    if(!speech.classList.contains('show') && !sleeping && !locked) speakRandom();
-  }, 55000);
+  // ---- 经济层同步：形体（胖度）与心情 ----
+  // 缩放放在 .pet 容器上（两个 CSS 变量），避免和 img 上的 bob/happy 动画抢 transform。
+  // 具体系数由主进程算（wallet.chubbyVisual），渲染层只负责套上去 —— 数值只有一处。
+  function applyChubby(v){
+    if(!v) return;
+    var x = Number(v.chubbyX), y = Number(v.chubbyY);
+    if(!isFinite(x) || !isFinite(y)) return;
+    x = Math.min(1.25, Math.max(1, x));
+    y = Math.min(1.25, Math.max(0.8, y));
+    pet.style.setProperty('--chubby-x', String(x));
+    pet.style.setProperty('--chubby-y', String(y));
+    pet.classList.toggle('fat', !!v.isFat);
+  }
+  function syncWallet(state){
+    if(!state) return;
+    if(typeof state.mood === 'number') mood = state.mood;
+    applyChubby(state);
+  }
+  if(window.wc && window.wc.onWallet) window.wc.onWallet(syncWallet);
+  if(window.wc && window.wc.getWallet){
+    window.wc.getWallet().then(syncWallet).catch(function(){});
+  }
+
+  // ---- 供菜单 / 游戏宿主 / 待办提醒调用 ----
+  window.petReact = function(kind){
+    if(locked) return;
+    switch(kind){
+      case 'full':    doAction('eat',     "吃得好饱…动不了了。", 2600); break;
+      case 'sleepy':  doAction('tired',   "有点困了…", 2600); break;
+      case 'excited': doAction('jump',    "！", 1800); break;
+      case 'happy':
+      default:        doAction('conduct', "嘿嘿。", 2000); break;
+    }
+  };
+  window.sleepNow = function(){
+    if(locked) return;
+    clearTimeout(idleTimer);
+    clearAction();
+    sleeping = true;
+    setSprite('sleep');
+    showSpeech("那我先眯一会儿…", 2600);
+  };
+  window.speak = function(text, ms){ if(text) showSpeech(String(text), ms || 4000); };
+  window.markInteraction = function(){ scheduleIdle(); };
+  window.getMood = function(){ return mood; };
 
   // ===== 输入层：拖拽 / 单击 / 双击 / 右键菜单 =====
   // 拖拽：渲染层判定「左键按下后位移 > 5px」即开始，通知主进程按光标增量移动窗口
