@@ -40,16 +40,40 @@ whalechan-desktop-pet-dfy/
 
 ## 二、环境要求与依赖
 
-本项目只有两类依赖，均在 `package.json` 的 `devDependencies` 中声明：
+依赖分两类：系统运行时（Node.js）与 npm 包（两个，均在 `package.json` 的 `devDependencies` 中声明）：
 
 | 依赖 | 版本 | 用途 | 是否需要 |
 |------|------|------|----------|
-| **Node.js**（含 npm） | ≥ 18 | 运行脚本、安装依赖 | 必需 |
+| **Node.js LTS**（含 npm） | ≥ 18 | 运行脚本、`npm install`、`node package.js` | 必需（**安装方式可选，推荐 LTS**） |
 | `electron` | `^44.8.0` | 运行时 + `start.bat` 运行桌宠 | 运行 / 打包都需要 |
 | `electron-builder` | `^26.15.3` | 打包安装包（NSIS / DMG / AppImage） | 仅打包需要 |
 
 > 说明：Electron 的实际运行版本由 `npm install` 拉取的 `node_modules/electron/dist` 决定；
 > 打包脚本会优先复用本机已安装的 `node_modules/electron/dist`，跳过下载，规避 Windows 下的文件锁。
+
+### 安装 Node.js（可选，建议）
+
+如果终端里 `node -v` 能正常输出版本号，说明已具备，**本节可跳过**。
+
+```bash
+# Windows（cmd / PowerShell，装完必须重开终端才生效）
+winget install --id OpenJS.NodeJS.LTS -e
+
+# macOS（Homebrew）
+brew install node
+```
+
+推荐安装 **LTS** 版本：本项目只用到 `child_process` / `fs` / `path` 等内置模块，对版本要求不高，
+但 LTS 自带的 npm 更稳定，`npm install` 也更少踩坑。
+
+> **不想安装 Node.js 的替代方式**
+> 若本机已有 node 可执行文件（例如其他软件自带的运行时），可直接用完整路径调用，无需改系统 PATH：
+> ```bash
+> "<node.exe 的完整路径>" package.js
+> "<node.exe 的完整路径>" node_modules/electron-builder/cli.js --win
+> ```
+> 该方式不改动系统环境，但每次都要写全路径，仅建议作为临时替代；
+> `npm install` 也需要同样替换成 `"<node.exe 的完整路径>" "<npm-cli.js 的完整路径>" install`。
 
 ### 安装依赖
 
@@ -172,6 +196,12 @@ A：先在本项目目录执行 `npm install` 安装依赖；`start.bat` 依赖 
 
 **Q：打包时报 `Cannot find module .../electron-builder/cli.js`？**
 A：同样先 `npm install`；`package.js` 需要 `electron-builder` 在场。
+
+**Q：执行 `node package.js` 报 `'node' 不是内部或外部命令` / `node: command not found`？**
+A：本机没装 Node.js，或装了但没进 PATH。先 `node -v` 确认；没有的话按第二节「安装 Node.js」装 LTS
+（Windows：`winget install --id OpenJS.NodeJS.LTS -e`，**装完要重开终端**）。
+不想装的话，改用 node 的完整路径调用，例如 `"C:\path\to\node.exe" package.js`。
+注意：这与项目代码无关，`package.js` 本身不依赖特定 Node 版本。
 
 **Q：Windows 下 `release/`、`dist-*` 等目录删不掉（提示被占用）？**
 A：多为杀软（如 Windows Defender）对 `*.asar` 的实时扫描持锁所致。重启一次电脑通常即可解锁删除；

@@ -1,0 +1,48 @@
+# ===== 依赖（不要进仓库，npm install 即可重建）=====
+node_modules/
+
+# ===== 构建产物（重新生成即可）=====
+release/
+dist/
+dist-electron/
+dist-win/
+dist-dev/
+dist-run/
+dist-linux/
+pkg-out*
+*.zip
+*.dmg
+*.AppImage
+*.deb
+
+# ===== electron-builder 缓存 / 临时目录 =====
+.ebcache/
+.tmpbuild/
+.electron-bin/
+.electron-dist/
+
+# ===== 会话/调试中产生的碎片（不要进仓库）=====
+*.probe*
+*.tmp
+*.log
+*.tar
+*.tar.gz
+neon.txt
+_2epyld4
+7j0leeqx
+_e44/
+_e30/
+.tmp_*
+
+# ===== 启动日志 =====
+start.log*
+
+# ===== 本地项目记忆（非源码，不进仓库）=====
+.workbuddy/
+
+# ===== 系统 / 编辑器垃圾 =====
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
