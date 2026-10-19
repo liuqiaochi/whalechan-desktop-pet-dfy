@@ -8,7 +8,7 @@
  *
  * 用法：
  *   node package.js        （任意平台）
- *   Windows 也可直接双击 package.bat
+ *   Windows 直接运行 node package.js 即可（无需额外批处理）
  *
  * 产物默认输出到项目根目录的 release/ 下；若该目录被系统占用（如待重启清理的锁），
  * 会自动改用 pkg-out/，不会因此打包失败。

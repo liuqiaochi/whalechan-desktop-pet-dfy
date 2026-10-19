@@ -32,7 +32,7 @@
 | 状态机 | `locked` / `sleeping` / `actionTimer` / `idleTimer`，闲置 **50s** → `sleep.png` | `whalechan.html:155-214` |
 | 菜单 | 托盘菜单与**宠物本体右键菜单共用 `buildPetMenu()` 同一模板**（说点什么 / 喂饭 / 切换姿势 / 鼠标穿透 / 退出）；已移除 `m.items[4].label` 硬编码写法 | `main.js`（`buildPetMenu` / `wc:context-menu`） |
 | 透明区穿透 | **逐像素点击穿透**：按精灵 alpha 遮罩判定，只有角色不透明像素接收鼠标，透明空白自动放行给下层窗口（解决空白区挡点击） | `src/alpha-masks.js`（`make_alpha.py` 生成）、`whalechan.html`（查表 + `setIgnoreMouse`）、`main.js`（`applyIgnoreMouse`） |
-| 打包 | `package.json` 三脚本 + `package.js` 自动识别平台 + `package.bat` / `start.bat` | 根目录 |
+| 打包 | `package.json` 三脚本 + `package.js` 自动识别平台 + `start.bat` | 根目录 |
 
 #### 1.1.1 关键演进与已知问题（截至 2026-10-17）
 

@@ -17,7 +17,6 @@ whalechan-desktop-pet-dfy/
 ├── preload.js           # 安全桥接（contextIsolation）：dragBegin / dragEnd / showContextMenu / setIgnoreMouse
 ├── package.json         # 依赖 + 构建脚本 + electron-builder 配置
 ├── package.js           # 一键打包：自动识别系统，输出到 release/（带锁自动兜底）
-├── package.bat          # Windows 双击一键打包
 ├── start.bat            # Windows 免安装快速运行（直接用本地 Electron 跑源码，不打包）
 ├── build/               # 图标资源（icon.png / icon.ico / icon.icns + 母版 + 来源 logo）
 ├── src/
@@ -85,8 +84,7 @@ npm install
 ## 四、一键打包（自动识别系统）
 
 ```bash
-node package.js      # 任意平台
-# Windows 也可直接双击 package.bat
+node package.js      # 任意平台（Windows 直接运行即可，无需额外批处理）
 ```
 
 脚本会检测当前系统并打出对应安装包，默认输出到 **`release/`**：
