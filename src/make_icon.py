@@ -5,14 +5,16 @@
   流程：去白底(四角 flood fill) → 裁切居中补方 → 生成 icon.png / icon.ico / icon.icns
 托盘图标素材：build/whale-girl-logo-master.png（官方正脸 logo，16pt/@2x；缺失则跳过）
 
-运行：python make_icon.py
+运行：python src/make_icon.py   （可在项目任意目录运行；脚本按自身位置解析路径）
 """
 import os
 import struct
 from io import BytesIO
 from PIL import Image, ImageDraw
 
-BUILD = "build"
+HERE = os.path.dirname(os.path.abspath(__file__))   # 本脚本所在目录（src/）
+ROOT = os.path.dirname(HERE)                        # 项目根目录
+BUILD = os.path.join(ROOT, "build")
 
 
 def load(name):
@@ -84,8 +86,8 @@ print("build/icon.png / build/icon.ico / build/icon.icns 已生成（新立绘�
 # ---- 托盘图标（官方正脸版，16pt + @2x；素材缺失则跳过）----
 if os.path.exists(os.path.join(BUILD, "whale-girl-logo-master.png")):
     tray_src = fit_square(load("whale-girl-logo-master.png"))
-    tray_src.resize((16, 16), Image.LANCZOS).save("src/tray.png")
-    tray_src.resize((32, 32), Image.LANCZOS).save("src/tray@2x.png")
+    tray_src.resize((16, 16), Image.LANCZOS).save(os.path.join(HERE, "tray.png"))
+    tray_src.resize((32, 32), Image.LANCZOS).save(os.path.join(HERE, "tray@2x.png"))
     print("src/tray.png / src/tray@2x.png 已生成（官方 master logo）")
 else:
     print("跳过托盘图标（缺 build/whale-girl-logo-master.png）")

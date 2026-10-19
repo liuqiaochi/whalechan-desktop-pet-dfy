@@ -9,7 +9,7 @@ alpha > ALPHA_T 的格子标记为不透明(1)，按位打包后 base64 写入 s
 运行时按光标在图片矩形内的相对位置查表即可。
 
 用法：
-    python make_alpha.py
+    python src/make_alpha.py     （可在项目任意目录运行；脚本按自身位置解析路径）
 新增或修改精灵后需重新运行一次。
 """
 import base64
@@ -19,11 +19,13 @@ import os
 
 from PIL import Image
 
+HERE = os.path.dirname(os.path.abspath(__file__))   # 本脚本所在目录（src/）
+
 COLS = 64          # 掩码横向格数（纵向按图片宽高比等比推导）
 ALPHA_T = 16       # alpha 阈值：>16 视为不透明（剔除极淡的半透明雾状边）
 
-SRC_GLOB = 'src/sprites/*.png'
-OUT_FILE = 'src/alpha-masks.js'
+SRC_GLOB = os.path.join(HERE, 'sprites', '*.png')
+OUT_FILE = os.path.join(HERE, 'alpha-masks.js')
 
 
 def pack_bits(bits):

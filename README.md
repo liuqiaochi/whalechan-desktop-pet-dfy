@@ -19,20 +19,20 @@ whalechan-desktop-pet-dfy/
 ├── package.js           # 一键打包：自动识别系统，输出到 release/（带锁自动兜底）
 ├── package.bat          # Windows 双击一键打包
 ├── start.bat            # Windows 免安装快速运行（直接用本地 Electron 跑源码，不打包）
-├── make_icon.py         # 生成托盘/应用图标（png/ico/icns）
-├── make_alpha.py        # 生成逐像素点击穿透遮罩 src/alpha-masks.js（精灵变更后需重跑）
 ├── build/               # 图标资源（icon.png / icon.ico / icon.icns + 母版 + 来源 logo）
 ├── src/
 │   ├── whalechan.html   # 桌宠本体：SVG 容器 + 13 精灵 + 状态机 + 交互
 │   ├── alpha-masks.js   # 逐像素点击穿透遮罩（make_alpha.py 生成，勿手改）
 │   ├── tray.png / tray@2x.png  # 托盘小图标
+│   ├── make_icon.py     # 生成托盘/应用图标（png/ico/icns）
+│   ├── make_alpha.py    # 生成逐像素点击穿透遮罩 src/alpha-masks.js（精灵变更后需重跑）
 │   └── sprites/         # 13 个姿势精灵（透明 PNG）+ 一张拼图（不打包）
 └── LICENSE              # 代码许可证（MIT）
 ```
 
 > 图标来源：社区资源库 [TreapGoGo/deepseek-whale-girl](https://github.com/TreapGoGo/deepseek-whale-girl)
 > `characters/brand/` 的两张官方 logo——应用图标用 `whale-girl-logo-dynamic-master.png`（发型飘动更生动），
-> 托盘小图标用 `whale-girl-logo-master.png`（正脸居中，小尺寸更清晰）。重新生成：`python3 make_icon.py`（需先按脚本头注释 curl 下载母版）。
+> 托盘小图标用 `whale-girl-logo-master.png`（正脸居中，小尺寸更清晰）。重新生成：`python3 src/make_icon.py`（需先按脚本头注释 curl 下载母版）。
 >
 > ⚠️ 以下目录为**构建产物 / 缓存**，已被 `.gitignore` 忽略，**不属于源码**，可随时删（部分在 Windows 上会被杀软持锁，重启后即可删除）：
 > `node_modules/`、`.electron-dist/`、`_e30/`、`_e44/`、`dist-dev/`、`dist-electron/`、`dist-win/`、`dist-run/`、`release/`、`pkg-out*/`。
@@ -185,11 +185,11 @@ A：未签名 DMG 会被 Gatekeeper 拦。在「系统设置 → 隐私与安全
 
 **Q：桌宠周围的空白区域会挡住下层窗口的点击？**
 A：已内置**逐像素点击穿透**——按每个精灵的 alpha 遮罩判定，只有角色不透明像素才接收鼠标，透明区域自动放行给下层窗口。
-若更换 / 新增精灵后穿透区域与形象不符，请重新运行 `python make_alpha.py` 生成 `src/alpha-masks.js`。
+若更换 / 新增精灵后穿透区域与形象不符，请重新运行 `python src/make_alpha.py` 生成 `src/alpha-masks.js`。
 
 **Q：想换掉鲸鱼娘形象？**
-A：替换 `src/sprites/` 下对应姿势 PNG 即可（建议保持透明背景、尺寸一致），并运行 `python make_alpha.py` 重建点击遮罩；
-托盘图标换 `src/tray.png`、`tray@2x.png`；应用图标换 `build/` 后运行 `python3 make_icon.py` 重新生成。
+A：替换 `src/sprites/` 下对应姿势 PNG 即可（建议保持透明背景、尺寸一致），并运行 `python src/make_alpha.py` 重建点击遮罩；
+托盘图标换 `src/tray.png`、`tray@2x.png`；应用图标换 `build/` 后运行 `python3 src/make_icon.py` 重新生成。
 
 ---
 
