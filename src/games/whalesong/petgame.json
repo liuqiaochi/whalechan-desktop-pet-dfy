@@ -1,0 +1,16 @@
+{
+  "id": "whalesong",
+  "name": "鲸歌 · Whale Song",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "entry": "index.html",
+  "author": { "name": "社区作者" },
+  "window": { "width": 640, "height": 460 },
+  "permissions": ["rice.earn", "pet.react"],
+  "economy": {
+    "scorePerRice": 30,
+    "maxPerSession": 25,
+    "maxPerDay": 70,
+    "minSeconds": 15
+  }
+}

@@ -1,0 +1,1994 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#01060d">
+<title>鲸歌 · Whale Song</title>
+<style>
+/* ═══════════════════════════════════════
+   鲸歌 · Whale Song
+   ═══════════════════════════════════════ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --cyan: #7ef0e0;
+  --cyan-dim: #3aa8b8;
+  --ink: #01070e;
+  --gold: #ffd98a;
+  --danger: #ff7a7a;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--ink);
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+  color: #cfeef2;
+  user-select: none;
+  cursor: crosshair;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 0%, #08243a 0%, #01070e 65%);
+}
+
+canvas#game {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+/* ── 屏幕层 ── */
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(4, 22, 36, .62) 0%, rgba(1, 7, 14, .93) 70%);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: fadeIn .75s ease both;
+  transition: opacity .45s ease;
+}
+.screen.hidden { display: none; }
+.screen.out { opacity: 0; pointer-events: none; }
+
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+
+.title-wrap {
+  text-align: center;
+  max-width: 620px;
+  animation: rise .9s cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(18px) }
+  to   { opacity: 1; transform: translateY(0) }
+}
+
+.bi-title {
+  font-family: "Songti SC", "Noto Serif SC", "SimSun", serif;
+  font-size: clamp(54px, 11vw, 96px);
+  letter-spacing: .16em;
+  font-weight: 400;
+  color: #eafcff;
+  text-indent: .16em;
+  text-shadow:
+    0 0 22px rgba(126, 240, 224, .55),
+    0 0 60px rgba(60, 190, 210, .35),
+    0 0 120px rgba(30, 110, 160, .3);
+  animation: breathe 5s ease-in-out infinite;
+}
+.bi-title.small { font-size: clamp(32px, 6vw, 48px); }
+@keyframes breathe {
+  0%, 100% { text-shadow: 0 0 22px rgba(126,240,224,.5), 0 0 60px rgba(60,190,210,.3), 0 0 120px rgba(30,110,160,.25) }
+  50%      { text-shadow: 0 0 30px rgba(126,240,224,.75), 0 0 80px rgba(60,190,210,.45), 0 0 150px rgba(30,110,160,.4) }
+}
+
+.bi-sub {
+  margin-top: 14px;
+  font-size: clamp(9px, 1.5vw, 12px);
+  letter-spacing: .55em;
+  color: var(--cyan-dim);
+  text-indent: .55em;
+  opacity: .95;
+}
+
+.tagline {
+  margin-top: 40px;
+  font-size: clamp(13px, 2.1vw, 16px);
+  line-height: 2;
+  color: #9fd6dd;
+  letter-spacing: .12em;
+  font-weight: 300;
+}
+
+.howto {
+  margin: 42px auto 0;
+  width: min(440px, 100%);
+  border-top: 1px solid rgba(126, 240, 224, .14);
+  border-bottom: 1px solid rgba(126, 240, 224, .14);
+  padding: 16px 4px;
+}
+.howto-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 7px 0;
+  font-size: 12.5px;
+  letter-spacing: .06em;
+}
+.howto-row .k {
+  flex: 0 0 46px;
+  color: var(--cyan);
+  opacity: .8;
+  letter-spacing: .2em;
+  text-align: right;
+}
+.howto-row .v { color: #8fb9c2; font-weight: 300; text-align: left; }
+
+.btn {
+  margin-top: 44px;
+  padding: 15px 54px;
+  font-size: 15px;
+  letter-spacing: .38em;
+  text-indent: .38em;
+  font-family: inherit;
+  color: #d9feff;
+  background: rgba(126, 240, 224, .04);
+  border: 1px solid rgba(126, 240, 224, .42);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all .35s cubic-bezier(.16,1,.3,1);
+  box-shadow: 0 0 0 rgba(126,240,224,0);
+  font-weight: 300;
+}
+.btn:hover {
+  background: rgba(126, 240, 224, .13);
+  border-color: rgba(126, 240, 224, .95);
+  box-shadow: 0 0 30px rgba(126, 240, 224, .28), inset 0 0 20px rgba(126, 240, 224, .1);
+  transform: translateY(-1px);
+  letter-spacing: .46em;
+  text-indent: .46em;
+}
+.btn:active { transform: translateY(1px) scale(.985); }
+
+.hint {
+  margin-top: 22px;
+  font-size: 11.5px;
+  color: #4d7b88;
+  letter-spacing: .1em;
+  font-weight: 300;
+}
+
+.best-line {
+  margin-top: 14px;
+  font-size: 11px;
+  letter-spacing: .2em;
+  color: #3f6b78;
+  min-height: 14px;
+  font-weight: 300;
+}
+.best-line b {
+  color: var(--cyan);
+  font-weight: 300;
+  font-size: 13px;
+  text-shadow: 0 0 12px rgba(126, 240, 224, .55);
+}
+
+/* ── 结算 ── */
+.score-big {
+  margin-top: 18px;
+  font-size: clamp(56px, 12vw, 92px);
+  font-weight: 200;
+  color: #eafcff;
+  letter-spacing: .02em;
+  text-shadow: 0 0 40px rgba(126, 240, 224, .45);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.score-big em { font-style: normal; font-size: .3em; color: var(--cyan-dim); margin-left: .16em; letter-spacing: .1em; }
+
+.over-grid {
+  display: flex;
+  justify-content: center;
+  gap: clamp(24px, 6vw, 56px);
+  margin-top: 34px;
+}
+.over-grid > div { display: flex; flex-direction: column; gap: 7px; }
+.over-grid b {
+  font-size: 21px; font-weight: 300; color: #cdf5f8;
+  font-variant-numeric: tabular-nums;
+}
+.over-grid span { font-size: 10px; letter-spacing: .22em; color: #48707c; }
+
+.rank {
+  margin-top: 30px;
+  font-size: 12.5px;
+  letter-spacing: .3em;
+  color: var(--gold);
+  opacity: .9;
+  min-height: 18px;
+}
+
+/* ── HUD ── */
+#hud {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  padding: clamp(16px, 3vw, 30px);
+  transition: opacity .4s;
+}
+#hud.hidden { display: none; }
+
+.hud-top { display: flex; justify-content: space-between; align-items: flex-start; }
+
+.hud-o2 { display: flex; align-items: center; gap: 11px; }
+.o2-label { font-size: 10px; letter-spacing: .18em; color: #5d93a0; }
+.o2-bar {
+  width: clamp(110px, 22vw, 190px);
+  height: 3px;
+  background: rgba(126, 240, 224, .13);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.o2-bar i {
+  display: block; height: 100%; width: 100%;
+  background: linear-gradient(90deg, #4ad6e0, #9ffdf0);
+  border-radius: 3px;
+  box-shadow: 0 0 12px rgba(126, 240, 224, .7);
+  transition: width .12s linear, background .4s;
+}
+.o2-bar.low i { background: linear-gradient(90deg, #ff6a5e, #ffb06a); box-shadow: 0 0 14px rgba(255,110,90,.75); }
+
+.hud-right { text-align: right; }
+.depth {
+  font-size: clamp(24px, 4.4vw, 36px);
+  font-weight: 200;
+  color: #e6fcff;
+  letter-spacing: .02em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 24px rgba(126, 240, 224, .4);
+  line-height: 1;
+}
+.depth em { font-style: normal; font-size: .34em; color: #4f8592; margin-left: .18em; letter-spacing: .1em; }
+
+.lives { margin-top: 10px; display: flex; gap: 7px; justify-content: flex-end; }
+.lives i {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(126, 240, 224, .75);
+  box-shadow: 0 0 9px rgba(126, 240, 224, .8);
+  transition: all .35s;
+}
+.lives i.off { background: rgba(120, 150, 160, .18); box-shadow: none; }
+
+.sonar-meter {
+  position: absolute;
+  left: 50%; bottom: clamp(20px, 4vh, 38px);
+  transform: translateX(-50%);
+  width: clamp(120px, 26vw, 180px);
+  height: 2px;
+  background: rgba(126, 240, 224, .12);
+  border-radius: 2px;
+  opacity: .85;
+}
+.sonar-meter i {
+  display: block; height: 100%; width: 0%;
+  background: var(--cyan);
+  box-shadow: 0 0 10px var(--cyan);
+  border-radius: 2px;
+}
+.sonar-meter span {
+  position: absolute; left: 50%; top: 7px; transform: translateX(-50%);
+  font-size: 8.5px; letter-spacing: .3em; color: #3d6b78; text-indent: .3em;
+  white-space: nowrap;
+}
+
+.combo {
+  position: absolute;
+  left: 50%; top: 22%;
+  transform: translate(-50%, 0) scale(.8);
+  font-size: 26px; font-weight: 200;
+  color: var(--gold);
+  text-shadow: 0 0 26px rgba(255, 217, 138, .7);
+  opacity: 0;
+  letter-spacing: .06em;
+  transition: opacity .3s, transform .3s;
+  font-variant-numeric: tabular-nums;
+}
+.combo.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+
+#btn-sound {
+  position: absolute;
+  right: clamp(16px, 3vw, 30px);
+  bottom: clamp(16px, 3vh, 26px);
+  z-index: 30;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid rgba(126, 240, 224, .22);
+  color: #5f95a2;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all .3s;
+  font-family: inherit;
+  line-height: 1;
+}
+#btn-sound:hover { border-color: rgba(126, 240, 224, .7); color: var(--cyan); }
+#btn-sound.muted { opacity: .38; text-decoration: line-through; }
+
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="game"></canvas>
+
+  <!-- ── 开始界面 ── -->
+  <div class="screen" id="screen-title">
+    <div class="title-wrap">
+      <div class="bi-title">鲸 歌</div>
+      <div class="bi-sub">W H A L E &nbsp; S O N G</div>
+      <div class="tagline">你什么也看不见。<br>除非你先喊出声。</div>
+
+      <div class="howto">
+        <div class="howto-row"><span class="k">移动</span><span class="v">鼠标 / ← → 　A D</span></div>
+        <div class="howto-row"><span class="k">声呐</span><span class="v">空格 / 鼠标左键　（屏幕上轻点）</span></div>
+        <div class="howto-row"><span class="k">下潜</span><span class="v">自动　按 ↓ / S 加速（更快，也更险）</span></div>
+      </div>
+
+      <button class="btn" id="btn-start">下&nbsp;潜</button>
+      <div class="hint">收集水母补充氧气 · 别撞上岩石 · 越深越快</div>
+      <div class="best-line" id="title-best"></div>
+    </div>
+  </div>
+
+  <!-- ── 暂停界面 ── -->
+  <div class="screen hidden" id="screen-pause">
+    <div class="title-wrap">
+      <div class="bi-title small">暂停</div>
+      <div class="hint" id="pause-hint">按 P 或点击继续</div>
+      <button class="btn" id="btn-resume">继&nbsp;续</button>
+    </div>
+  </div>
+
+  <!-- ── 结束界面 ── -->
+  <div class="screen hidden" id="screen-over">
+    <div class="title-wrap">
+      <div class="bi-sub" id="over-label">下潜结束</div>
+      <div class="score-big"><span id="over-depth">0</span><em>m</em></div>
+      <div class="over-grid">
+        <div><b id="over-jelly">0</b><span>水母</span></div>
+        <div><b id="over-combo">0</b><span>最高连击</span></div>
+        <div><b id="over-best">0</b><span>最深处</span></div>
+      </div>
+      <div class="rank" id="over-rank">—</div>
+      <div class="bi-sub" id="over-rice"></div>
+      <button class="btn" id="btn-retry">再&nbsp;次&nbsp;下&nbsp;潜</button>
+      <div class="hint">空格 / 回车 快速重开</div>
+    </div>
+  </div>
+
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="hud-o2">
+        <div class="o2-label">O₂</div>
+        <div class="o2-bar"><i id="o2-fill"></i></div>
+      </div>
+      <div class="hud-right">
+        <div class="depth"><span id="hud-depth">0</span><em>m</em></div>
+        <div class="lives" id="hud-lives"></div>
+      </div>
+    </div>
+    <div class="sonar-meter" id="sonar-meter"><i id="sonar-fill"></i><span>声呐</span></div>
+    <div class="combo" id="combo-pop"></div>
+  </div>
+
+  <button id="btn-sound" title="声音开关">♪</button>
+</div>
+<script>
+/* ══════════════════════════════════════════════════════════════
+   鲸歌 · Whale Song
+   一个用声音代替视觉的深海下潜游戏
+   ─────────────────────────────────────────────────────────────
+   核心：世界本身是全黑的。只有声呐脉冲扫过的物体才会显形，
+        并在约 2.4 秒内衰减回去。玩家必须「探测 → 记忆 → 盲穿」。
+   ══════════════════════════════════════════════════════════════ */
+(() => {
+'use strict';
+
+/* ─────────────── 工具 ─────────────── */
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const lerp = (a, b, t) => a + (b - a) * t;
+const rand = (a, b) => a + Math.random() * (b - a);
+const randi = (a, b) => Math.floor(rand(a, b + 1));
+const smoothstep = (e0, e1, x) => { const t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); };
+const pick = arr => arr[randi(0, arr.length - 1)];
+const fmt = n => n.toLocaleString('en-US');
+
+/* ─────────────── 画布 ─────────────── */
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d', { alpha: false });
+let CSSW = 0, CSSH = 0, DPR = 1, K = 1;
+let VW = 1200, VH = 1200, S = 1;   // VH 恒为 1200 世界单位
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  CSSW = canvas.clientWidth || window.innerWidth;
+  CSSH = canvas.clientHeight || window.innerHeight;
+  canvas.width = Math.round(CSSW * DPR);
+  canvas.height = Math.round(CSSH * DPR);
+  VH = 1200;
+  K = CSSH / VH;
+  VW = CSSW / K;
+  S = clamp(Math.min(VW / 820, 1), 0.62, 1.12);
+  ctx.setTransform(K * DPR, 0, 0, K * DPR, 0, 0);
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  vignetteCache = null;
+}
+
+/* ─────────────── 音频（全程序化，无素材） ─────────────── */
+const Snd = {
+  ac: null, master: null, wet: null, on: true, ready: false,
+
+  init() {
+    if (this.ready) { if (this.ac && this.ac.state === 'suspended') this.ac.resume(); return; }
+    try {
+      this._build();
+    } catch (e) {
+      // 音频不可用时静默降级，绝不能影响游戏本身
+      this.ready = false;
+      console.warn('audio disabled:', e);
+    }
+  },
+
+  _build() {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ac = new AC();
+    this.master = this.ac.createGain();
+    this.master.gain.value = 0.85;
+    this.master.connect(this.ac.destination);
+
+    // 简易卷积混响 —— 制造深海空间感
+    const dur = 2.6, rate = this.ac.sampleRate, len = Math.floor(rate * dur);
+    const ir = this.ac.createBuffer(2, len, rate);
+    for (let c = 0; c < 2; c++) {
+      const d = ir.getChannelData(c);
+      for (let i = 0; i < len; i++) {
+        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6);
+      }
+    }
+    const conv = this.ac.createConvolver();
+    conv.buffer = ir;
+    this.wet = this.ac.createGain();
+    this.wet.gain.value = 0.34;
+    this.wet.connect(conv);
+    conv.connect(this.master);
+    this.ready = true;
+    if (this.ac.state === 'suspended') this.ac.resume();
+    this.ambient();
+  },
+
+  toggle() {
+    this.on = !this.on;
+    if (this.master) this.master.gain.setTargetAtTime(this.on ? 0.85 : 0, this.ac.currentTime, 0.08);
+    return this.on;
+  },
+
+  env(node, t, a, d, peak) {
+    const g = node.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(0.0001, t);
+    g.exponentialRampToValueAtTime(peak, t + a);
+    g.exponentialRampToValueAtTime(0.0001, t + a + d);
+  },
+
+  ping() {
+    if (!this.ready) return;
+    const t = this.ac.currentTime;
+    const o = this.ac.createOscillator(), g = this.ac.createGain(), f = this.ac.createBiquadFilter();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(1680, t);
+    o.frequency.exponentialRampToValueAtTime(720, t + 0.34);
+    f.type = 'lowpass'; f.frequency.value = 3000;
+    this.env(g, t, 0.012, 0.85, 0.20);
+    o.connect(f); f.connect(g); g.connect(this.master); g.connect(this.wet);
+    o.start(t); o.stop(t + 0.95);
+
+    // 高频"咔"——声呐发射的机械感
+    const o2 = this.ac.createOscillator(), g2 = this.ac.createGain();
+    o2.type = 'triangle'; o2.frequency.setValueAtTime(2400, t);
+    o2.frequency.exponentialRampToValueAtTime(1200, t + 0.05);
+    this.env(g2, t, 0.004, 0.06, 0.07);
+    o2.connect(g2); g2.connect(this.master);
+    o2.start(t); o2.stop(t + 0.1);
+  },
+
+  collect(step) {
+    if (!this.ready) return;
+    const t = this.ac.currentTime;
+    const base = 880 * Math.pow(1.0595, Math.min(step, 12) * 2);
+    [1, 1.5, 2].forEach((m, i) => {
+      const o = this.ac.createOscillator(), g = this.ac.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(base * m, t + i * 0.035);
+      o.frequency.exponentialRampToValueAtTime(base * m * 1.02, t + i * 0.035 + 0.2);
+      this.env(g, t + i * 0.035, 0.008, 0.34, 0.09 / (i + 1));
+      o.connect(g); g.connect(this.master); g.connect(this.wet);
+      o.start(t + i * 0.035); o.stop(t + i * 0.035 + 0.42);
+    });
+  },
+
+  hit() {
+    if (!this.ready) return;
+    const t = this.ac.currentTime;
+    // 低频冲击
+    const o = this.ac.createOscillator(), g = this.ac.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(150, t);
+    o.frequency.exponentialRampToValueAtTime(38, t + 0.5);
+    this.env(g, t, 0.006, 0.6, 0.42);
+    o.connect(g); g.connect(this.master); g.connect(this.wet);
+    o.start(t); o.stop(t + 0.7);
+
+    // 噪声爆裂
+    const n = this.ac.createBufferSource();
+    const bl = Math.floor(this.ac.sampleRate * 0.35);
+    const buf = this.ac.createBuffer(1, bl, this.ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bl; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bl, 3.2);
+    n.buffer = buf;
+    const nf = this.ac.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 420; nf.Q.value = 0.8;
+    const ng = this.ac.createGain(); ng.gain.value = 0.3;
+    n.connect(nf); nf.connect(ng); ng.connect(this.master); ng.connect(this.wet);
+    n.start(t);
+  },
+
+  over() {
+    if (!this.ready) return;
+    const t = this.ac.currentTime;
+    [110, 82.5, 55].forEach((f, i) => {
+      const o = this.ac.createOscillator(), g = this.ac.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(f, t);
+      o.frequency.exponentialRampToValueAtTime(f * 0.55, t + 2.6);
+      this.env(g, t, 0.4, 3.0, 0.14 / (i + 1));
+      o.connect(g); g.connect(this.master); g.connect(this.wet);
+      o.start(t); o.stop(t + 3.6);
+    });
+  },
+
+  layer() {
+    if (!this.ready) return;
+    const t = this.ac.currentTime;
+    const o = this.ac.createOscillator(), g = this.ac.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(220, t);
+    o.frequency.exponentialRampToValueAtTime(330, t + 1.4);
+    this.env(g, t, 0.5, 2.2, 0.06);
+    o.connect(g); g.connect(this.master); g.connect(this.wet);
+    o.start(t); o.stop(t + 3);
+  },
+
+  ambient() {
+    // 低频涌动的海底底噪
+    const t = this.ac.currentTime;
+    [41.2, 61.7, 82.4].forEach((f, i) => {
+      const o = this.ac.createOscillator(), g = this.ac.createGain(), lp = this.ac.createBiquadFilter();
+      o.type = 'sine'; o.frequency.value = f;
+      lp.type = 'lowpass'; lp.frequency.value = 220;
+      g.gain.value = 0.028 / (i + 1);
+      o.connect(lp); lp.connect(g); g.connect(this.master);
+      o.start(t);
+      // 缓慢呼吸
+      const lfo = this.ac.createOscillator(), lg = this.ac.createGain();
+      lfo.frequency.value = 0.045 + i * 0.017;
+      lg.gain.value = 0.016 / (i + 1);
+      lfo.connect(lg); lg.connect(g.gain);
+      lfo.start(t);
+    });
+  }
+};
+
+/* ─────────────── 输入 ─────────────── */
+const input = {
+  left: false, right: false, down: false,
+  mx: null,            // 鼠标世界 x
+  mode: 'mouse',       // 'mouse' | 'key'
+  pointerActive: false
+};
+
+const keys = new Set();
+
+/* ─────────────── 色彩带（随深度） ─────────────── */
+const PALETTE = [
+  { d: 0,    top: [22, 84, 120], bot: [7, 32, 52] },
+  { d: 260,  top: [10, 52, 82],  bot: [4, 20, 35] },
+  { d: 620,  top: [7, 28, 54],   bot: [2, 11, 22] },
+  { d: 1200, top: [16, 11, 48],  bot: [2, 4, 15] },
+  { d: 2200, top: [26, 7, 40],   bot: [1, 1, 7] },
+  { d: 4200, top: [12, 2, 20],   bot: [0, 0, 3] }
+];
+
+function palette(depth) {
+  let a = PALETTE[0], b = PALETTE[PALETTE.length - 1];
+  for (let i = 0; i < PALETTE.length - 1; i++) {
+    if (depth >= PALETTE[i].d && depth <= PALETTE[i + 1].d) { a = PALETTE[i]; b = PALETTE[i + 1]; break; }
+  }
+  if (depth > b.d) a = b;
+  const t = a === b ? 0 : clamp((depth - a.d) / (b.d - a.d), 0, 1);
+  const mix = (x, y) => `rgb(${Math.round(lerp(x[0], y[0], t))},${Math.round(lerp(x[1], y[1], t))},${Math.round(lerp(x[2], y[2], t))})`;
+  return { top: mix(a.top, b.top), bot: mix(a.bot, b.bot) };
+}
+
+/* ─────────────── 深度层 ─────────────── */
+const LAYERS = [
+  { d: 180,  name: '暮 光 层', en: 'T W I L I G H T   Z O N E' },
+  { d: 520,  name: '午 夜 层', en: 'M I D N I G H T   Z O N E' },
+  { d: 1000, name: '深 渊 层', en: 'A B Y S S A L   Z O N E' },
+  { d: 1800, name: '超 深 渊', en: 'H A D A L   Z O N E' },
+  { d: 3000, name: '鲸 落',   en: 'W H A L E   F A L L' }
+];
+
+/* ─────────────── 游戏状态 ─────────────── */
+const PX_PER_M = 45;
+const PLAYER_SCREEN_Y = 0.36;
+
+const G = {
+  state: 'title',      // title | playing | paused | dying | over
+  camY: -1,
+  depth: 0,
+  speed: 260,
+  o2: 100,
+  lives: 4,
+  jelly: 0,
+  combo: 0,
+  maxCombo: 0,
+  score: 0,
+  time: 0,
+  shake: 0,
+  flash: 0,
+  hurtFx: 0,
+  sonarFlash: 0,
+  sonarCD: 0,
+  sonarReady: true,
+  invuln: 0,
+  banner: null,
+  layerIdx: 0,
+  best: 0,
+  deathT: 0,
+  introT: 0,
+  startFlash: 0
+};
+
+const player = {
+  x: 0, y: 0, vy: 0, wx: 0, wy: 0,
+  vx: 0, tilt: 0, bob: 0, r: 22, tail: 0, dead: false, pulse: 0
+};
+
+let rocks = [], jellies = [], waves = [], parts = [], snow = [], ripples = [];
+let nextSpawnY = 0;
+
+/* ─────────────── 实体生成 ─────────────── */
+function makeRockShape(r, seed) {
+  const n = randi(7, 10);
+  const pts = [];
+  let a = rand(0, TAU);
+  for (let i = 0; i < n; i++) {
+    const ang = a + (i / n) * TAU + rand(-0.14, 0.14);
+    const rr = r * rand(0.72, 1.06);
+    pts.push([Math.cos(ang) * rr, Math.sin(ang) * rr]);
+  }
+  return pts;
+}
+
+function spawnRow(y) {
+  const d = y / PX_PER_M;
+  const diff = clamp(d / 1400, 0, 1);
+
+  // 通道宽度按「玩家体型」定，而非屏幕比例——否则宽屏会变成空旷走廊
+  const gw = lerp(390, 250, diff) * S;
+  const cx = rand(gw * 0.55 + 60 * S, VW - gw * 0.55 - 60 * S);
+  const leftEdge = cx - gw / 2;
+  const rightEdge = cx + gw / 2;
+
+  const rMin = (26 + 8 * diff) * S;
+  const rMax = (58 + 22 * diff) * S;
+
+  // 左右两侧填石头（石块右缘严格不得越过通道边界，杜绝堵死）
+  for (const [from, to] of [[-70 * S, leftEdge], [rightEdge, VW + 70 * S]]) {
+    let x = from;
+    while (x < to - rMin * 2) {
+      const r = rand(rMin, rMax);
+      const cx = x + r;
+      if (cx + r > to) break;
+      rocks.push({
+        x: cx, y: y + rand(-85, 85) * S, r,
+        pts: makeRockShape(r, Math.random()),
+        lit: 0, hue: rand(0, 1), rot: rand(0, TAU), hitPulse: 0, dead: false
+      });
+      x = cx + r + rand(26, 120) * S;
+    }
+  }
+
+  // 通道里的诱饵石（少量，制造"要记路"的压力）
+  if (diff > 0.28 && Math.random() < 0.30 * diff) {
+    const r = rand(rMin, rMin * 1.25);
+    rocks.push({
+      x: rand(leftEdge + r + 16 * S, rightEdge - r - 16 * S), y: y + rand(-40, 40) * S, r,
+      pts: makeRockShape(r, Math.random()),
+      lit: 0, hue: rand(0, 1), rot: rand(0, TAU), hitPulse: 0, dead: false
+    });
+  }
+
+  // 水母（避开岩石，否则会被埋进石头里）
+  if (Math.random() < 0.82) {
+    let jx = 0, ok = false;
+    for (let tries = 0; tries < 6 && !ok; tries++) {
+      jx = Math.random() < 0.66
+        ? rand(leftEdge + 30 * S, rightEdge - 30 * S)
+        : rand(50 * S, VW - 50 * S);
+      ok = !rocks.some(r => r.y > y - 200 && r.y < y + 200 && Math.abs(r.x - jx) < r.r + 34 * S);
+    }
+    if (ok) {
+      jellies.push({
+        x: jx, y: y + rand(-70, 70) * S,
+        r: 18 * S, lit: 0, phase: rand(0, TAU),
+        drift: rand(-9, 9) * S, taken: false, pop: 0
+      });
+    }
+  }
+}
+
+function ensureWorld() {
+  const horizon = G.camY + VH + 420 * S;
+  let guard = 0;
+  while (nextSpawnY < horizon && guard++ < 40) {
+    spawnRow(nextSpawnY);
+    const d = nextSpawnY / PX_PER_M;
+    const diff = clamp(d / 1400, 0, 1);
+    nextSpawnY += lerp(390, 275, diff) * S * rand(0.88, 1.14);
+  }
+}
+
+function resetWorld() {
+  rocks = []; jellies = []; waves = []; parts = []; ripples = [];
+  G.camY = -VH * PLAYER_SCREEN_Y;
+  player.wx = VW / 2;
+  player.x = VW / 2;
+  player.vx = 0;
+  player.tilt = 0;
+  player.dead = false;
+  nextSpawnY = G.camY + VH * 1.05;
+  G.layerIdx = 0;
+  ensureWorld();
+  initSnow();
+}
+
+function initSnow() {
+  snow = [];
+  const n = Math.round(180 * S);
+  for (let i = 0; i < n; i++) {
+    snow.push({
+      x: rand(-100, VW + 100),
+      y: rand(0, VH),
+      z: rand(0.25, 1),
+      r: rand(0.6, 2.1),
+      vy: rand(6, 26),
+      drift: rand(-6, 6),
+      tw: rand(0, TAU)
+    });
+  }
+}
+
+/* ─────────────── 粒子 ─────────────── */
+function burst(x, y, n, color, spd, life) {
+  for (let i = 0; i < n; i++) {
+    const a = rand(0, TAU), v = rand(spd * 0.3, spd);
+    parts.push({
+      x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+      r: rand(1, 3.4) * S, life: rand(life * 0.5, life), max: life,
+      color, drag: rand(0.86, 0.95)
+    });
+  }
+}
+
+/* ─────────────── 声呐 ─────────────── */
+const SONAR_SPEED = 700;
+let SONAR_MAX = 700;
+
+function fireSonar() {
+  if (G.state !== 'playing' && G.state !== 'title') return;
+  if (!G.sonarReady) return;
+  G.sonarReady = false;
+  G.sonarCD = 1.9;
+  Snd.ping();
+
+  const px = player.x, py = player.screenY;
+  waves.push({ x: px, y: py, r: 0, R: SONAR_MAX * S, hits: [], sweep: 0 });
+  player.pulse = 1;
+  G.sonarFlash = 1;
+
+  // 发射点气泡
+  burst(px, py, 8, 'rgba(160,255,240,', 70, 0.5);
+}
+
+/* ─────────────── 更新 ─────────────── */
+function update(dt) {
+  G.time += dt;
+
+  // ── 深度与速度
+  if (G.state === 'playing') {
+    G.depth = Math.max(0, (G.camY + VH * PLAYER_SCREEN_Y) / PX_PER_M);
+    const target = Math.min(260 + G.depth * 0.46, 820);
+    G.speed = lerp(G.speed, target, 1 - Math.pow(0.001, dt));
+    if (input.down) G.speed = lerp(G.speed, target * 1.75, 1 - Math.pow(0.02, dt));
+  } else if (G.state === 'title') {
+    G.speed = 150;
+  } else {
+    G.speed = lerp(G.speed, 0, 1 - Math.pow(0.02, dt));
+  }
+
+  G.camY += G.speed * dt;
+  player.wx = G.camY + VH * PLAYER_SCREEN_Y;
+  player.screenY = VH * PLAYER_SCREEN_Y + Math.sin(G.time * 1.1) * 5 * S;
+  player.bob = Math.sin(G.time * 1.1);
+
+  // ── 水平控制
+  if (G.state === 'playing' || G.state === 'title') {
+    const accel = 3000 * S;
+    if (input.mode === 'key') {
+      let dir = 0;
+      if (input.left) dir -= 1;
+      if (input.right) dir += 1;
+      player.vx += dir * accel * dt;
+      player.vx *= Math.pow(0.0009, dt);
+      if (dir === 0) player.vx *= Math.pow(0.02, dt);
+    } else {
+      let tx = player.x;
+      if (input.mx !== null) tx = input.mx;
+      const k = 1 - Math.pow(0.0000025, dt);
+      player.vx = lerp(player.vx, (tx - player.x) * 9.5, k);
+    }
+    const maxV = 700 * S;
+    player.vx = clamp(player.vx, -maxV, maxV);
+    player.x += player.vx * dt;
+    const pad = player.r * 1.5 + 4;
+    if (player.x < pad) { player.x = pad; player.vx = Math.abs(player.vx) * 0.25; }
+    if (player.x > VW - pad) { player.x = VW - pad; player.vx = -Math.abs(player.vx) * 0.25; }
+    player.tilt = lerp(player.tilt, clamp(player.vx / (620 * S), -1, 1) * 0.32, 1 - Math.pow(0.001, dt));
+
+    // 游动尾迹
+    player.trailT = (player.trailT || 0) + dt;
+    if (player.trailT > 0.05) {
+      player.trailT = 0;
+      parts.push({
+        x: player.x - 34 * S, y: player.screenY + rand(-7, 7) * S,
+        vx: -player.vx * 0.18 + rand(-14, 14), vy: rand(-12, 20),
+        r: rand(0.9, 2.6) * S, life: rand(0.5, 1.2), max: 1.2,
+        color: 'rgba(115,230,232,', drag: 0.94
+      });
+    }
+  }
+
+  // ── 声呐冷却
+  if (!G.sonarReady) {
+    G.sonarCD -= dt;
+    if (G.sonarCD <= 0) { G.sonarReady = true; G.sonarCD = 0; }
+  }
+  if (G.state === 'title') {
+    G.sonarReady = true;
+    // 标题界面：鲸鱼自行缓慢游弋，画面保持"活着"
+    if (input.mx === null || input.autoIdle) {
+      input.autoIdle = true;
+      input.mode = 'mouse';
+      input.mx = VW / 2 + Math.sin(G.time * 0.45) * VW * 0.2;
+    }
+    if (G.time - (G._lastAuto || 0) > 2.5) {
+      G._lastAuto = G.time;
+      fireSonar();
+    }
+  }
+
+  // ── 声呐波推进 + 命中检测
+  for (let i = waves.length - 1; i >= 0; i--) {
+    const w = waves[i];
+    const prev = w.r;
+    w.r += SONAR_SPEED * S * dt;
+    // 波前扫过实体
+    const scan = (e, isJelly) => {
+      const dx = e.x - w.x, dy = (e.y - G.camY) - w.y;
+      const d = Math.hypot(dx, dy);
+      if (d > prev && d <= w.r) {
+        e.lit = 1;
+        if (Math.random() < 0.5) w.hits.push({ a: Math.atan2(dy, dx), r: d, life: 1 });
+      }
+    };
+    for (const r of rocks) scan(r);
+    for (const j of jellies) if (!j.taken) scan(j);
+
+    for (const h of w.hits) h.life -= dt * 1.6;
+    w.hits = w.hits.filter(h => h.life > 0);
+    if (w.r > w.R) waves.splice(i, 1);
+  }
+
+  // ── 岩石
+  for (const r of rocks) {
+    if (r.lit > 0) r.lit = Math.max(0, r.lit - dt / 2.7);
+    if (r.hitPulse > 0) r.hitPulse -= dt * 2;
+  }
+  rocks = rocks.filter(r => r.y - G.camY < VH + 700 * S && r.y - G.camY > -700 * S);
+  jellies = jellies.filter(j => j.y - G.camY < VH + 500 * S && j.y - G.camY > -500 * S);
+
+  // ── 水母
+  for (const j of jellies) {
+    if (j.taken) { j.pop += dt * 3; continue; }
+    if (j.lit > 0) j.lit = Math.max(0, j.lit - dt / 3.2);
+    j.phase += dt * 1.6;
+    j.x += Math.sin(j.phase * 0.5) * j.drift * dt;
+    j.y -= 8 * S * dt;
+  }
+
+  // ── 碰撞
+  if (G.state === 'playing' || G.state === 'title') {
+    const px = player.x, py = player.screenY;
+    const pr = player.r * 0.82;
+
+    if (G.state === 'playing') {
+      for (const j of jellies) {
+        if (j.taken) continue;
+        const dx = j.x - px, dy = (j.y - G.camY) - py;
+        if (dx * dx + dy * dy < (pr + j.r + 8 * S) ** 2) {
+          j.taken = true;
+          G.jelly++;
+          G.combo++;
+          G.maxCombo = Math.max(G.maxCombo, G.combo);
+          const heal = 16 + Math.min(G.combo, 6) * 1.3;
+          G.o2 = Math.min(100, G.o2 + heal);
+          Snd.collect(G.combo);
+          burst(j.x, j.y - G.camY, 14, 'rgba(255,224,150,', 160, 0.85);
+          ripples.push({ x: j.x, y: j.y - G.camY, r: 0, life: 1 });
+          showCombo(G.combo);
+        }
+      }
+
+      if (G.invuln <= 0 && !GOD) {
+        for (const r of rocks) {
+          const dx = r.x - px, dy = (r.y - G.camY) - py;
+          const rr = r.r * 0.86 + pr;
+          if (dx * dx + dy * dy < rr * rr) {
+            hitRock(r);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // ── 氧气
+  if (G.state === 'playing') {
+    const drain = GOD ? 0 : 2.65 + G.depth / 240 + (input.down ? 1.6 : 0);
+    G.o2 -= drain * dt;
+    G.score = Math.floor(G.depth) + G.jelly * 12;
+
+    if (G.o2 <= 0) { G.o2 = 0; die('氧气耗尽'); }
+
+    // 深度层
+    if (G.layerIdx < LAYERS.length && G.depth >= LAYERS[G.layerIdx].d) {
+      G.banner = { t: 3.4, ...LAYERS[G.layerIdx] };
+      G.layerIdx++;
+      Snd.layer();
+    }
+  }
+
+  if (G.invuln > 0) G.invuln -= dt;
+  if (G.introT > 0) G.introT -= dt;
+  if (G.flash > 0) G.flash -= dt * 2.6;
+  if (G.sonarFlash > 0) G.sonarFlash = Math.max(0, G.sonarFlash - dt * 3.4);
+  if (G.shake > 0) G.shake *= Math.pow(0.0025, dt);
+  if (G.hurtFx > 0) G.hurtFx -= dt * 1.6;
+  if (G.banner) { G.banner.t -= dt; if (G.banner.t <= 0) G.banner = null; }
+  if (player.pulse > 0) player.pulse -= dt * 2.2;
+
+  // ── 粒子
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    p.life -= dt;
+    if (p.life <= 0) { parts.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= Math.pow(p.drag, dt * 60);
+    p.vy = p.vy * Math.pow(p.drag, dt * 60) - 14 * S * dt;
+  }
+
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    ripples[i].r += 320 * dt;
+    ripples[i].life = (ripples[i].life || 1) - dt * 1.4;
+    if (ripples[i].life <= 0) ripples.splice(i, 1);
+  }
+
+  // ── 海雪（相对屏幕滚动）
+  const scroll = G.speed * dt;
+  for (const s of snow) {
+    s.y += s.vy * s.z * dt + scroll * s.z * 0.55;
+    s.x += Math.sin(G.time * 0.6 + s.tw) * 5 * dt;
+    if (s.y > VH + 20) { s.y = -20; s.x = rand(-60, VW + 60); }
+    if (s.y < -40) { s.y = VH + 20; s.x = rand(-60, VW + 60); }
+    if (s.x < -80) s.x = VW + 60;
+    if (s.x > VW + 80) s.x = -60;
+  }
+
+  ensureWorld();
+  if (G.state === 'dying') {
+    G.deathT += dt;
+    if (G.deathT > 1.5) { G.state = 'over'; showOver(); }
+  }
+}
+
+function hitRock(r) {
+  r.hitPulse = 1;
+  G.lives--;
+  G.combo = 0;
+  G.invuln = 2.2;
+  G.shake = 22;
+  G.hurtFx = 1;
+  G.flash = 0.55;
+  G.o2 = Math.max(0, G.o2 - 7);
+  // 撞击后声呐立刻恢复：给玩家一次"紧急照明"，避免黑暗中连环撞
+  G.sonarReady = true;
+  G.sonarCD = 0;
+  Snd.hit();
+  burst(player.x, player.screenY, 26, 'rgba(255,120,110,', 260, 0.7);
+  if (G.lives <= 0) die('被岩石击沉');
+  updateLives();
+}
+
+function die(reason) {
+  if (G.state !== 'playing') return;
+  G.state = 'dying';
+  G.deathT = 0;
+  G.deathReason = reason;
+  player.dead = true;
+  G.shake = 30;
+  G.flash = 0.8;
+  Snd.over();
+  burst(player.x, player.screenY, 50, 'rgba(140,235,225,', 220, 1.4);
+}
+
+/* ─────────────── 绘制 ─────────────── */
+function drawBackground() {
+  const pal = palette(G.depth);
+  const g = ctx.createLinearGradient(0, 0, 0, VH);
+  g.addColorStop(0, pal.top);
+  g.addColorStop(0.55, pal.bot);
+  g.addColorStop(1, pal.bot);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, VW, VH);
+}
+
+/* 确定性伪随机，用于生成恒定的远景 */
+function hash(n) {
+  const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/* 远景海底剪影：视差滚动，营造空间纵深 */
+function drawBgProps() {
+  const par = 0.4;
+  const scrollY = G.camY * par;
+  const period = 2100;
+  const startIdx = Math.floor((scrollY - VH * 0.6) / period);
+  ctx.save();
+  for (let i = 0; i <= 4; i++) {
+    const idx = startIdx + i;
+    if (idx < -2) continue;
+    const y = idx * period - scrollY + VH * 0.3;
+    if (y < -1000 || y > VH + 1000) continue;
+    const h1 = hash(idx), h2 = hash(idx * 3.7), h3 = hash(idx * 7.13);
+    const x = h1 * VW;
+    const r = (240 + h2 * 380) * S;
+
+    // 主体：几个重叠的圆，构成海底山脊
+    const blobs = [
+      [0, 0, r],
+      [r * 0.72, r * 0.24, r * 0.68],
+      [-r * 0.68, r * 0.3, r * 0.55],
+      [r * 0.2, -r * 0.4, r * 0.5]
+    ];
+    ctx.beginPath();
+    for (const [bx, by, br] of blobs) {
+      ctx.moveTo(x + bx + br, y + by);
+      ctx.arc(x + bx, y + by, br, 0, TAU);
+    }
+    ctx.fillStyle = `rgba(${30 + h3 * 16 | 0},${82 + h3 * 28 | 0},${110 + h3 * 32 | 0},0.22)`;
+    ctx.fill();
+
+    // 极淡的边缘光（远处的生物荧光勾勒轮廓）
+    ctx.strokeStyle = `rgba(120,225,238,0.085)`;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawRays() {  const fade = clamp(1 - G.depth / 320, 0, 1);
+  if (fade <= 0.01) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 5; i++) {
+    const t = G.time * 0.14 + i * 1.7;
+    const x = ((i * 0.27 + 0.1) * VW + Math.sin(t) * 90 * S + G.time * 5 * S) % (VW + 400) - 200;
+    const w0 = 60 * S, w1 = 230 * S;
+    const grad = ctx.createLinearGradient(x, 0, x + 90 * S, VH * 0.9);
+    grad.addColorStop(0, `rgba(150,235,255,${0.055 * fade})`);
+    grad.addColorStop(0.6, `rgba(120,210,240,${0.018 * fade})`);
+    grad.addColorStop(1, 'rgba(90,180,220,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(x - w0, -20);
+    ctx.lineTo(x + w0, -20);
+    ctx.lineTo(x + 90 * S + w1, VH);
+    ctx.lineTo(x + 90 * S - w1, VH);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawSnow(front) {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const s of snow) {
+    if (front ? s.z < 0.66 : s.z >= 0.66) continue;
+    const a = (front ? 0.20 : 0.32) * (0.55 + 0.45 * Math.sin(G.time * 1.6 + s.tw)) * s.z;
+    ctx.fillStyle = `rgba(190,235,245,${a})`;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r * S, 0, TAU);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function visOf(e, base = 0) {
+  // 被声呐照亮的程度 + 玩家生物光的近距照亮 + 自身底光
+  const d = Math.hypot(e.x - player.x, (e.y - G.camY) - player.screenY);
+  const near = smoothstep(240 * S, 60 * S, d) * 0.66;
+  return clamp(Math.max(e.lit, near, base), 0, 1);
+}
+
+function drawRocks() {
+  for (const r of rocks) {
+    const sy = r.y - G.camY;
+    if (sy < -300 || sy > VH + 300) continue;
+    const vis = visOf(r);
+    if (vis < 0.012) continue;
+
+    const pulse = clamp(r.hitPulse, 0, 1);
+    const lit = r.lit;
+    const edge = clamp(0.95 * vis + 0.5 * pulse, 0, 1);
+
+    ctx.save();
+    ctx.translate(r.x, sy);
+    ctx.rotate(r.rot * 0.12);
+
+    // 主体：声呐回波式的灰青色轮廓
+    ctx.beginPath();
+    for (let i = 0; i < r.pts.length; i++) {
+      const [px, py] = r.pts[i];
+      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+    ctx.closePath();
+
+    // 亮度随被照亮程度上升：刚扫到时接近灰白，随后褪成幽蓝
+    const L = 34 + 68 * lit;
+    const grad = ctx.createRadialGradient(-r.r * 0.3, -r.r * 0.35, r.r * 0.05, 0, 0, r.r * 1.15);
+    grad.addColorStop(0, `rgba(${L * 0.62 | 0},${L * 1.22 | 0},${L * 1.42 | 0},${vis})`);
+    grad.addColorStop(0.55, `rgba(${L * 0.34 | 0},${L * 0.78 | 0},${L * 0.95 | 0},${vis})`);
+    grad.addColorStop(1, `rgba(${L * 0.14 | 0},${L * 0.36 | 0},${L * 0.46 | 0},${vis})`);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // 声呐描边
+    ctx.strokeStyle = `rgba(${lerp(120, 215, lit) | 0},${lerp(245, 255, lit) | 0},${lerp(240, 252, lit) | 0},${edge})`;
+    ctx.lineWidth = (1.3 + lit * 1.5) * S;
+    ctx.stroke();
+
+    // 被强照时的内部回声纹理
+    if (lit > 0.15) {
+      ctx.save();
+      ctx.clip();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = `rgba(126,240,224,${lit * 0.10})`;
+      ctx.lineWidth = 1;
+      for (let i = -2; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(-r.r, i * r.r * 0.34);
+        ctx.lineTo(r.r, i * r.r * 0.34 + r.r * 0.18);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 顶部highlight
+    if (lit > 0.2) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.beginPath();
+      ctx.ellipse(-r.r * 0.15, -r.r * 0.55, r.r * 0.42, r.r * 0.2, -0.4, 0, TAU);
+      ctx.fillStyle = `rgba(160,255,245,${lit * 0.11})`;
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+function drawJellies() {
+  for (const j of jellies) {
+    const sy = j.y - G.camY;
+    if (sy < -160 || sy > VH + 160) continue;
+    if (j.taken) {
+      // 收集后的光环扩散
+      if (j.pop < 1) {
+        const a = 1 - j.pop;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = `rgba(255,232,170,${a * 0.8})`;
+        ctx.lineWidth = 2 * S * a + 0.5;
+        ctx.beginPath();
+        ctx.arc(j.x, sy, j.r * (1 + j.pop * 4.5), 0, TAU);
+        ctx.stroke();
+        ctx.restore();
+      }
+      continue;
+    }
+    const vis = visOf(j, 0.40);
+    if (vis < 0.01) continue;
+
+    const breathe = 1 + Math.sin(j.phase * 1.4) * 0.07;
+    const r = j.r * S * 1.35 * breathe;
+
+    ctx.save();
+    ctx.translate(j.x, sy);
+    ctx.globalCompositeOperation = 'lighter';
+
+    // 大范围光晕
+    const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 5.2);
+    glow.addColorStop(0, `rgba(255,214,130,${0.50 * vis})`);
+    glow.addColorStop(0.3, `rgba(255,186,96,${0.20 * vis})`);
+    glow.addColorStop(1, 'rgba(255,170,70,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(0, 0, r * 5.2, 0, TAU); ctx.fill();
+
+    // 触手
+    ctx.strokeStyle = `rgba(255,224,160,${0.72 * vis})`;
+    ctx.lineWidth = 1.2 * S;
+    for (let i = 0; i < 4; i++) {
+      const ox = (i - 1.5) * r * 0.34;
+      ctx.beginPath();
+      ctx.moveTo(ox, r * 0.1);
+      const len = r * (1.7 + (i % 2) * 0.6);
+      for (let t = 0; t <= 1.001; t += 0.25) {
+        const yy = r * 0.1 + t * len;
+        const xx = ox + Math.sin(j.phase * 2 + t * 3.4 + i) * r * 0.28 * t;
+        ctx.lineTo(xx, yy);
+      }
+      ctx.stroke();
+    }
+
+    // 伞体
+    ctx.beginPath();
+    ctx.moveTo(-r, r * 0.18);
+    ctx.bezierCurveTo(-r * 1.05, -r * 0.95, r * 1.05, -r * 0.95, r, r * 0.18);
+    for (let i = 1; i <= 7; i++) {
+      const t = i / 7;
+      ctx.lineTo(
+        lerp(r, -r, t),
+        r * 0.18 + Math.sin(t * Math.PI * 3 + j.phase * 1.6) * r * 0.14
+      );
+    }
+    ctx.closePath();
+    const bg = ctx.createRadialGradient(0, -r * 0.3, 0, 0, 0, r * 1.1);
+    bg.addColorStop(0, `rgba(255,248,220,${0.82 * vis})`);
+    bg.addColorStop(1, `rgba(255,205,125,${0.26 * vis})`);
+    ctx.fillStyle = bg;
+    ctx.fill();
+    ctx.strokeStyle = `rgba(255,242,200,${0.95 * vis})`;
+    ctx.lineWidth = 1.5 * S;
+    ctx.stroke();
+
+    // 核心
+    ctx.beginPath();
+    ctx.arc(0, -r * 0.28, r * 0.22, 0, TAU);
+    ctx.fillStyle = `rgba(255,255,245,${0.95 * vis})`;
+    ctx.fill();
+
+    ctx.restore();
+  }
+}
+
+function drawSonarWaves() {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const w of waves) {
+    const p = w.r / w.R;
+    const a = Math.pow(1 - p, 1.7);
+    if (a <= 0.005) continue;
+
+    // 主环
+    ctx.strokeStyle = `rgba(165,255,245,${a * 0.95})`;
+    ctx.lineWidth = 3 * S;
+    ctx.beginPath(); ctx.arc(w.x, w.y, w.r, 0, TAU); ctx.stroke();
+
+    // 柔光外环
+    ctx.strokeStyle = `rgba(110,230,225,${a * 0.20})`;
+    ctx.lineWidth = 26 * S;
+    ctx.beginPath(); ctx.arc(w.x, w.y, w.r, 0, TAU); ctx.stroke();
+
+    // 内层回声
+    if (w.r > 60) {
+      ctx.strokeStyle = `rgba(200,255,250,${a * 0.20})`;
+      ctx.lineWidth = 1 * S;
+      ctx.beginPath(); ctx.arc(w.x, w.y, w.r * 0.82, 0, TAU); ctx.stroke();
+    }
+
+    // 命中点闪光
+    for (const h of w.hits) {
+      const hx = w.x + Math.cos(h.a) * w.r, hy = w.y + Math.sin(h.a) * w.r;
+      const ha = h.life * a;
+      ctx.fillStyle = `rgba(255,255,255,${ha * 0.85})`;
+      ctx.beginPath(); ctx.arc(hx, hy, 2.6 * S * h.life, 0, TAU); ctx.fill();
+      ctx.strokeStyle = `rgba(180,255,245,${ha * 0.5})`;
+      ctx.lineWidth = 1 * S;
+      ctx.beginPath(); ctx.arc(hx, hy, 8 * S * (1.6 - h.life), 0, TAU); ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawPlayer() {
+  const x = player.x, y = player.screenY;
+  const fade = player.dead ? clamp(1 - G.deathT / 1.2, 0, 1) : 1;
+  const blink = G.invuln > 0 ? (Math.sin(G.time * 30) > 0 ? 0.35 : 1) : 1;
+  const s = S * 1.0;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(player.tilt * 0.5);
+  ctx.scale(s, s);
+
+  // ── 生物光晕（照亮周围）
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const gl = ctx.createRadialGradient(0, 0, 0, 0, 0, 230);
+  const pl = 1 + player.pulse * 0.6;
+  gl.addColorStop(0, `rgba(130,245,238,${0.27 * fade * pl})`);
+  gl.addColorStop(0.35, `rgba(70,200,215,${0.11 * fade * pl})`);
+  gl.addColorStop(1, 'rgba(40,140,180,0)');
+  ctx.fillStyle = gl;
+  ctx.beginPath(); ctx.arc(0, 0, 230, 0, TAU); ctx.fill();
+  ctx.restore();
+
+  ctx.globalAlpha = blink * fade;
+
+  // 尾鳍摆动
+  const wag = Math.sin(G.time * 3.6) * 0.22 + player.tilt * 0.3;
+
+  // ── 鲸鱼剪影
+  const body = () => {
+    ctx.beginPath();
+    ctx.moveTo(46, 1);
+    ctx.bezierCurveTo(42, -17, 18, -25, -10, -18);
+    ctx.bezierCurveTo(-26, -14, -34, -9, -38, -4);
+    ctx.bezierCurveTo(-34, 5, -26, 12, -10, 17);
+    ctx.bezierCurveTo(16, 25, 42, 18, 46, 1);
+    ctx.closePath();
+  };
+
+  // 尾
+  ctx.save();
+  ctx.translate(-36, 0);
+  ctx.rotate(wag);
+  ctx.beginPath();
+  ctx.moveTo(2, 0);
+  ctx.bezierCurveTo(-8, -2, -22, -16, -30, -20);
+  ctx.bezierCurveTo(-26, -8, -28, -3, -18, 0);
+  ctx.bezierCurveTo(-28, 3, -26, 8, -30, 20);
+  ctx.bezierCurveTo(-22, 16, -8, 2, 2, 0);
+  ctx.closePath();
+  ctx.fillStyle = '#07141d';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(120,232,225,0.55)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+
+  // 胸鳍
+  ctx.save();
+  ctx.translate(6, 12);
+  ctx.rotate(0.5 + Math.sin(G.time * 2.2) * 0.12);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 15, 6.5, 0, 0, TAU);
+  ctx.fillStyle = '#0a1a25';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(120,232,225,0.42)';
+  ctx.lineWidth = 1.3;
+  ctx.stroke();
+  ctx.restore();
+
+  // 身体填充
+  body();
+  const bgr = ctx.createLinearGradient(0, -22, 0, 24);
+  bgr.addColorStop(0, '#2b6076');
+  bgr.addColorStop(0.45, '#16394b');
+  bgr.addColorStop(1, '#0a1d2a');
+  ctx.fillStyle = bgr;
+  ctx.fill();
+
+  // 背部发光条纹
+  ctx.save();
+  body();
+  ctx.clip();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 5; i++) {
+    const yy = -14 + i * 7;
+    ctx.fillStyle = `rgba(110,235,225,${0.05 + 0.03 * Math.sin(G.time * 2 + i)})`;
+    ctx.beginPath();
+    ctx.ellipse(-4 + i * 2, yy, 26 - i * 2, 1.6, 0, 0, TAU);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // 轮廓发光
+  body();
+  ctx.strokeStyle = 'rgba(175,255,248,0.95)';
+  ctx.lineWidth = 2.3;
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(120,235,230,0.30)';
+  ctx.lineWidth = 9;
+  ctx.stroke();
+
+  // 腹部高光
+  ctx.beginPath();
+  ctx.moveTo(38, 8);
+  ctx.bezierCurveTo(24, 19, -6, 21, -22, 14);
+  ctx.strokeStyle = 'rgba(200,255,250,0.22)';
+  ctx.lineWidth = 2.6;
+  ctx.stroke();
+
+  // 腹褶（须鲸特征）
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(36, 6 + i * 2.2);
+    ctx.quadraticCurveTo(8, 14 + i * 2.4, -18, 12 + i * 1.5);
+    ctx.strokeStyle = `rgba(150,235,240,${0.10 - i * 0.018})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // 眼睛
+  ctx.beginPath();
+  ctx.arc(31, -4, 3.1, 0, TAU);
+  ctx.fillStyle = 'rgba(235,255,252,0.98)';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(31, -4, 9, 0, TAU);
+  ctx.fillStyle = 'rgba(150,250,240,0.22)';
+  ctx.fill();
+
+  // 喷气孔小气泡
+  if (Math.random() < 0.08) {
+    parts.push({
+      x: x + rand(-4, 4) * S, y: y - 20 * S, vx: rand(-8, 8), vy: rand(-40, -20),
+      r: rand(1, 2.6) * S, life: rand(0.8, 1.6), max: 1.6, color: 'rgba(180,245,245,', drag: 0.97
+    });
+  }
+
+  ctx.restore();
+}
+
+function drawParticles() {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const p of parts) {
+    const a = clamp(p.life / p.max, 0, 1);
+    ctx.fillStyle = p.color + (a * 0.9) + ')';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * (0.4 + a * 0.8), 0, TAU);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawRipples() {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const r of ripples) {
+    const a = clamp(r.life, 0, 1);
+    ctx.strokeStyle = `rgba(255,236,180,${a * 0.5})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, TAU); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+let vignetteCache = null;
+
+function drawVignette() {
+  if (!vignetteCache) {
+    const g = ctx.createRadialGradient(VW / 2, VH * 0.45, VH * 0.2, VW / 2, VH * 0.5, VH * 0.95);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(0.6, 'rgba(0,3,8,0.22)');
+    g.addColorStop(1, 'rgba(0,2,6,0.66)');
+    vignetteCache = g;
+  }
+  ctx.fillStyle = vignetteCache;
+  ctx.fillRect(0, 0, VW, VH);
+
+  // 氧气低时的红色边缘警示
+  if (G.state === 'playing' && G.o2 < 32) {
+    const a = (1 - G.o2 / 32) * (0.28 + 0.12 * Math.sin(G.time * 5));
+    const rg = ctx.createRadialGradient(VW / 2, VH / 2, VH * 0.28, VW / 2, VH / 2, VH * 0.8);
+    rg.addColorStop(0, 'rgba(255,60,50,0)');
+    rg.addColorStop(1, `rgba(255,50,45,${a})`);
+    ctx.fillStyle = rg;
+    ctx.fillRect(0, 0, VW, VH);
+  }
+}
+
+function drawBanner() {
+  if (!G.banner) return;
+  const b = G.banner;
+  const t = b.t;
+  const a = clamp(Math.min(t, 3.4 - t) * 1.4, 0, 1);
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(230,255,255,0.92)';
+  ctx.font = `200 ${34 * S}px "Songti SC", serif`;
+  ctx.fillText(b.name, VW / 2, VH * 0.5);
+  ctx.fillStyle = 'rgba(126,240,224,0.55)';
+  ctx.font = `300 ${9 * S}px "Helvetica Neue", sans-serif`;
+  ctx.fillText(b.en, VW / 2, VH * 0.5 + 26 * S);
+  ctx.strokeStyle = 'rgba(126,240,224,0.3)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(VW / 2 - 60 * S, VH * 0.5 - 34 * S);
+  ctx.lineTo(VW / 2 + 60 * S, VH * 0.5 - 34 * S);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawIntro() {
+  if (G.introT <= 0) return;
+  const a = clamp(Math.min(G.introT, 5 - G.introT) * 1.4, 0, 1) * 0.9;
+  const bob = Math.sin(G.time * 2.4) * 3 * S;
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(200,250,250,0.9)';
+  ctx.font = `300 ${13 * S}px "PingFang SC","Microsoft YaHei",sans-serif`;
+  ctx.fillText('按  空格  发声 · 声波扫过之处才会显形', VW / 2, VH * 0.63 + bob);
+  ctx.fillStyle = 'rgba(126,240,224,0.45)';
+  ctx.font = `300 ${9.5 * S}px "Helvetica Neue",sans-serif`;
+  ctx.fillText('S O N A R   P I N G', VW / 2, VH * 0.63 + 20 * S + bob);
+  ctx.restore();
+}
+
+function render() {
+  ctx.save();
+  if (G.shake > 0.4) {
+    ctx.translate(rand(-G.shake, G.shake) * 0.5, rand(-G.shake, G.shake) * 0.5);
+  }
+
+  drawBackground();
+  drawBgProps();
+  drawRays();
+  drawSnow(false);
+
+  drawRocks();
+  drawJellies();
+  drawSonarWaves();
+  drawPlayer();
+  drawParticles();
+  drawRipples();
+  drawSnow(true);
+
+  ctx.restore();
+
+  drawVignette();
+  drawIntro();
+  drawBanner();
+
+  // 受击红闪
+  if (G.flash > 0.01) {
+    ctx.fillStyle = `rgba(255,70,60,${G.flash * 0.30})`;
+    ctx.fillRect(0, 0, VW, VH);
+  }
+  // 声呐发射的瞬时曝光
+  if (G.sonarFlash > 0.005) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = `rgba(120,240,235,${G.sonarFlash * 0.10})`;
+    ctx.fillRect(0, 0, VW, VH);
+    ctx.restore();
+  }
+  // 开场淡入
+  if (G.startFlash > 0) {
+    ctx.fillStyle = `rgba(2,8,14,${G.startFlash})`;
+    ctx.fillRect(0, 0, VW, VH);
+  }
+}
+
+/* ─────────────── HUD / 界面 ─────────────── */
+const $ = id => document.getElementById(id);
+const elScreenTitle = $('screen-title');
+const elScreenPause = $('screen-pause');
+const elScreenOver = $('screen-over');
+const elHud = $('hud');
+const elO2 = $('o2-fill');
+const elO2Bar = elO2.parentElement;
+const elDepth = $('hud-depth');
+const elLives = $('hud-lives');
+const elSonarFill = $('sonar-fill');
+const elCombo = $('combo-pop');
+
+let comboTO = null;
+function showCombo(n) {
+  if (n < 2) return;
+  elCombo.textContent = `× ${n}`;
+  elCombo.classList.add('show');
+  clearTimeout(comboTO);
+  comboTO = setTimeout(() => elCombo.classList.remove('show'), 620);
+}
+
+function updateLives() {
+  let h = '';
+  for (let i = 0; i < 4; i++) h += `<i class="${i < G.lives ? '' : 'off'}"></i>`;
+  elLives.innerHTML = h;
+}
+
+function updateHUD() {
+  elO2.style.width = clamp(G.o2, 0, 100) + '%';
+  elO2Bar.classList.toggle('low', G.o2 < 32);
+  elDepth.textContent = Math.floor(G.depth);
+  elSonarFill.style.width = (G.sonarReady ? 100 : (1 - G.sonarCD / 1.9) * 100) + '%';
+  elSonarFill.style.opacity = G.sonarReady ? '1' : '0.55';
+}
+
+function refreshBest() {
+  const el = $('title-best');
+  if (!el) return;
+  el.innerHTML = G.best > 0
+    ? `最深处 <b>${Math.floor(G.best)}</b> m`
+    : '';
+}
+
+function rankOf(d) {
+  if (d < 120) return '浅滩游魂 · SHALLOW DRIFTER';
+  if (d < 320) return '暮光潜行者 · TWILIGHT DIVER';
+  if (d < 700) return '午夜回声 · MIDNIGHT ECHO';
+  if (d < 1300) return '深渊之耳 · EAR OF THE ABYSS';
+  if (d < 2200) return '鲸歌永存 · THE SONG ENDURES';
+  return '超深渊之主 · LORD OF THE HADAL';
+}
+
+function showOver() {
+  elHud.classList.add('hidden');
+  if (G.depth > G.best) {
+    G.best = G.depth;
+    try { localStorage.setItem('whalesong_best', String(Math.floor(G.depth))); } catch (e) {}
+  }
+  $('over-depth').textContent = Math.floor(G.depth);
+  $('over-jelly').textContent = G.jelly;
+  $('over-combo').textContent = G.maxCombo;
+  $('over-best').textContent = Math.floor(G.best);
+  $('over-rank').textContent = rankOf(G.depth);
+  $('over-label').textContent = G.deathReason === '氧气耗尽' ? '氧气耗尽' : '鲸 沉 于 此';
+  elScreenOver.classList.remove('hidden', 'out');
+  refreshBest();
+
+  // 桌宠接入：把分数交给主进程结算。
+  // 注意：游戏只能传分数，不能传「要加多少白饭」—— 定价权在主进程。
+  if (window.PetGame && PetGame.submit) {
+    var riceEl = $('over-rice');
+    if (riceEl) riceEl.textContent = '';
+    PetGame.submit(G.score).then(function (r) {
+      if (!riceEl || !r || !r.ok) return;
+      if (r.awarded > 0) {
+        riceEl.textContent = '＋' + r.awarded + ' 白饭　（共 ' + r.balance + '）';
+        if (PetGame.react) PetGame.react('excited');
+      } else if (r.capped === 'too-fast') {
+        riceEl.textContent = '这局太短了，没算白饭';
+      } else if (r.capped === 'daily') {
+        riceEl.textContent = '今天的白饭已经赚满啦';
+      } else if (r.capped === 'diminish') {
+        riceEl.textContent = '玩太多局了，白饭减半';
+      } else {
+        riceEl.textContent = '这局没赚到白饭';
+      }
+    }).catch(function () {});
+  }
+}
+
+function startGame() {
+  Snd.init();
+  elScreenTitle.classList.add('out');
+  setTimeout(() => elScreenTitle.classList.add('hidden'), 420);
+  elScreenOver.classList.add('hidden');
+  elScreenPause.classList.add('hidden');
+  elHud.classList.remove('hidden');
+
+  G.state = 'playing';
+  G.depth = 0; G.o2 = 100; G.lives = 4; G.jelly = 0;
+  G.combo = 0; G.maxCombo = 0; G.score = 0;
+  G.sonarReady = true; G.sonarCD = 0; G.invuln = 1.2;
+  G.speed = 260; G.shake = 0; G.flash = 0; G.startFlash = 1;
+  G.banner = null; G.deathT = 0; G.layerIdx = 0;
+  G.introT = 5;
+  input.mx = null; input.autoIdle = false;
+  resetWorld();
+  updateLives();
+  updateHUD();
+
+  // 桌宠接入：开一局。开始时间由主进程记录，游戏说的时间不作数。
+  if (window.PetGame && PetGame.startSession) { try { PetGame.startSession(); } catch (e) {} }
+}
+
+function toTitle() {
+  G.state = 'title';
+  elHud.classList.add('hidden');
+  elScreenOver.classList.add('hidden');
+  elScreenPause.classList.add('hidden');
+  elScreenTitle.classList.remove('hidden', 'out');
+  resetWorld();
+}
+
+function pause() {
+  if (G.state !== 'playing') return;
+  G.state = 'paused';
+  elScreenPause.classList.remove('hidden');
+}
+function resume() {
+  if (G.state !== 'paused') return;
+  G.state = 'playing';
+  elScreenPause.classList.add('hidden');
+}
+
+/* ─────────────── 事件绑定 ─────────────── */
+$('btn-start').addEventListener('click', startGame);
+$('btn-retry').addEventListener('click', startGame);
+$('btn-resume').addEventListener('click', resume);
+
+$('btn-sound').addEventListener('click', e => {
+  e.stopPropagation();
+  Snd.init();
+  const on = Snd.toggle();
+  $('btn-sound').classList.toggle('muted', !on);
+});
+
+// 键盘
+window.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (['arrowleft', 'arrowright', 'arrowdown', 'arrowup', ' ', 'a', 'd', 's', 'w'].includes(k)) e.preventDefault();
+
+  if (k === 'p' || k === 'escape') {
+    if (G.state === 'playing') pause();
+    else if (G.state === 'paused') resume();
+    return;
+  }
+
+  if (k === ' ' || k === 'enter') {
+    if (G.state === 'title') { startGame(); return; }
+    if (G.state === 'over') { startGame(); return; }
+    if (k === ' ') fireSonar();
+    return;
+  }
+
+  if (k === 'arrowleft' || k === 'a') { input.left = true; input.mode = 'key'; }
+  if (k === 'arrowright' || k === 'd') { input.right = true; input.mode = 'key'; }
+  if (k === 'arrowdown' || k === 's') { input.down = true; input.mode = 'key'; }
+  if (k === 'arrowup' || k === 'w') { input.down = false; }
+  keys.add(k);
+});
+
+window.addEventListener('keyup', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'arrowleft' || k === 'a') input.left = false;
+  if (k === 'arrowright' || k === 'd') input.right = false;
+  if (k === 'arrowdown' || k === 's') input.down = false;
+  keys.delete(k);
+});
+
+// 鼠标
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  input.mx = (e.clientX - rect.left) / K;
+  input.mode = 'mouse';
+});
+canvas.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  Snd.init();
+  if (G.state === 'playing') fireSonar();
+});
+canvas.addEventListener('mouseleave', () => { input.mx = null; });
+
+// 触屏：拖动移动，轻点发射声呐
+let touchStart = null;
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  Snd.init();
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  touchStart = { x: t.clientX, y: t.clientY, t: performance.now() };
+  input.mx = (t.clientX - rect.left) / K;
+  input.mode = 'mouse';
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  input.mx = (t.clientX - rect.left) / K;
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  if (touchStart) {
+    const dt = performance.now() - touchStart.t;
+    const t = e.changedTouches[0];
+    const dist = Math.hypot(t.clientX - touchStart.x, t.clientY - touchStart.y);
+    if (dt < 280 && dist < 16 && G.state === 'playing') fireSonar();
+    touchStart = null;
+  }
+}, { passive: false });
+
+// 失焦暂停
+window.addEventListener('blur', () => { if (G.state === 'playing') pause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && G.state === 'playing') pause(); });
+
+// 防止右键菜单
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+/* ─────────────── 主循环 ─────────────── */
+let last = performance.now();
+let frameN = 0;
+function loop(now) {
+  let dt = (now - last) / 1000;
+  last = now;
+  dt = Math.min(dt, 1 / 30);
+
+  update(dt);
+  if (BOT) botThink();
+  render();
+
+  if (G.state === 'playing') {
+    updateHUD();
+    if (G.startFlash > 0) G.startFlash = Math.max(0, G.startFlash - dt * 1.2);
+  } else if (G.startFlash > 0) {
+    G.startFlash = Math.max(0, G.startFlash - dt * 1.2);
+  }
+
+  requestAnimationFrame(loop);
+}
+
+/* ─────────────── 调试 / 自动演示 ─────────────── */
+const PARAMS = new URLSearchParams(location.search);
+const AUTOSTART = PARAMS.has('autostart');
+const BOT = PARAMS.has('bot');
+const GOD = PARAMS.has('god');
+
+// 运行时错误可视化（方便玩家反馈 / 自动化检查）
+window.addEventListener('error', e => {
+  let box = document.getElementById('err-box');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'err-box';
+    box.style.cssText = 'position:fixed;left:0;top:0;z-index:9999;background:#300;color:#f88;font:12px monospace;padding:8px;max-width:100%;white-space:pre-wrap';
+    document.body.appendChild(box);
+  }
+  box.textContent += 'ERR: ' + (e.message || e.error) + '\n';
+});
+
+function botThink() {
+  if (G.state !== 'playing') return;
+  const py = player.screenY;
+  let bestX = player.x, bestScore = -1e9;
+
+  for (let i = 0; i < 18; i++) {
+    const cx = VW * (i + 0.5) / 18;
+    let score = 0;
+    const lo = Math.min(player.x, cx), hi = Math.max(player.x, cx);
+    for (const r of rocks) {
+      const sy = r.y - G.camY;
+      if (sy < py - 120 || sy > py + 760) continue;
+      const gap = Math.abs(r.x - cx) - (r.r + player.r + 30 * S);
+      if (gap < 0) score -= 900 + (-gap) * 12;
+      else if (gap < 45 * S) score -= 55;
+      else if (gap < 90 * S) score -= 12;
+      // 横移路径扫过的宽度也算危险，避免"落点安全但半路撞上"
+      if (sy > py - 90 && sy < py + 260 && r.x + r.r > lo && r.x - r.r < hi) score -= 140;
+    }
+    for (const j of jellies) {
+      if (j.taken) continue;
+      const sy = j.y - G.camY;
+      if (sy < py - 200 || sy > py + 520) continue;
+      if (Math.abs(j.x - cx) < 55 * S) score += G.o2 < 80 ? 90 : 40;
+    }
+    score -= Math.abs(cx - player.x) * 0.10;
+    if (score > bestScore) { bestScore = score; bestX = cx; }
+  }
+
+  input.mode = 'mouse';
+  input.mx = clamp(bestX, 30, VW - 30);
+  if (G.sonarReady) fireSonar();
+}
+
+/* ─────────────── 启动 ─────────────── */
+window.addEventListener('resize', () => {
+  resize();
+  initSnow();
+});
+
+try {
+  G.best = parseFloat(localStorage.getItem('whalesong_best') || '0');
+} catch (e) { G.best = 0; }
+if (!isFinite(G.best)) G.best = 0;
+
+resize();
+resetWorld();
+G.state = 'title';
+updateLives();
+refreshBest();
+requestAnimationFrame(loop);
+
+// 自动化验证：同步快进 N 秒（绕过 headless 虚拟时间下 dt=0 的问题）
+const WARP = parseFloat(PARAMS.get('warp') || '0');
+if (AUTOSTART || WARP > 0) {
+  startGame();
+  elScreenTitle.classList.add('hidden');
+  elScreenTitle.classList.remove('out');
+  G.startFlash = 0;
+  if (WARP > 0) {
+    const step = 1 / 60;
+    for (let i = 0; i < WARP * 60; i++) {
+      update(step);
+      if (BOT) botThink();
+    }
+    G.startFlash = 0; G.introT = 0;
+  }
+  if (PARAMS.has('stats')) {
+    const vj = jellies.filter(j => !j.taken && (j.y - G.camY) > 0 && (j.y - G.camY) < VH);
+    const vr = rocks.filter(r => (r.y - G.camY) > 0 && (r.y - G.camY) < VH);
+    const litR = vr.filter(r => r.lit > 0.1).length;
+    const jy = vj.map(j => (j.y - G.camY) | 0).join(',');
+    document.title = `W S:${G.state} D:${G.depth | 0} O2:${G.o2 | 0} L:${G.lives} ` +
+      `visR:${vr.length} litR:${litR} visJ:${vj.length}[${jy}] COMBO:${G.maxCombo}`;
+  }
+}
+
+// 记录最深
+setInterval(() => {
+  if (G.state === 'over' && G.depth > G.best) {
+    G.best = G.depth;
+    localStorage.setItem('whalesong_best', String(Math.floor(G.depth)));
+  }
+}, 800);
+
+})();
+
+</script>
+</body>
+</html>
