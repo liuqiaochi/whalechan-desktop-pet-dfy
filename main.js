@@ -12,6 +12,7 @@ let win = null;
 let tray = null;
 let clickThrough = false;   // 菜单「别挡着我」：强制整窗穿透（用户显式开启）
 let alphaIgnore = false;    // 逐像素穿透：光标位于角色透明处时的临时穿透
+let pinned = false;         // 菜单「钉在最顶层」：默认关闭 → 与普通窗口同级，可被其他窗口盖住
 
 function createWindow() {
   win = new BrowserWindow({
@@ -21,7 +22,7 @@ function createWindow() {
     frame: false,
     resizable: false,
     skipTaskbar: true,
-    alwaysOnTop: true,
+    alwaysOnTop: false,     // 默认不置顶；置顶由「钉在最顶层」开关控制（见 setPinned）
     backgroundColor: '#00000000',
     hasShadow: false,
     webPreferences: {
@@ -37,10 +38,24 @@ function createWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   win.setPosition(width - 330, height - 410);
 
-  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  win.setAlwaysOnTop(true, 'screen-saver');
+  // 置顶相关一律走 pinned 状态：默认 false 时既不是最顶层，也不跨工作区/全屏显示。
+  applyPinned();
 
   win.on('closed', () => { stopDrag(); win = null; });
+}
+
+// 按当前 pinned 状态应用窗口层级（创建时与切换开关时共用，避免两处逻辑分叉）
+function applyPinned() {
+  if (!win || win.isDestroyed()) return;
+  win.setAlwaysOnTop(pinned, 'screen-saver');
+  win.setVisibleOnAllWorkspaces(pinned, { visibleOnFullScreen: pinned });
+}
+
+// 菜单「钉在最顶层」：勾上才升到 screen-saver 级（可盖住全屏/其他置顶窗口）
+function setPinned(on) {
+  pinned = !!on;
+  applyPinned();
+  refreshMenus();
 }
 
 // ---- 拖拽：主进程按「光标位移增量」移动窗口（delta 定位，无累积偏差）----
@@ -133,6 +148,7 @@ function buildPetMenu() {
       : []),
 
     { type: 'separator' },
+    { label: '钉在最顶层', type: 'checkbox', checked: pinned, click: (item) => setPinned(item.checked) },
     { label: '别挡着我', type: 'checkbox', checked: clickThrough, click: () => toggleThrough() },
 
     { type: 'separator' },

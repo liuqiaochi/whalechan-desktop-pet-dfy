@@ -1,6 +1,6 @@
 # 鲸鱼娘桌宠 · 跨平台版（macOS / Windows）
 
-基于「视觉作品画廊」官方 chibi 立绘的桌面宠物：透明置顶窗 + 官方精灵 + 状态机
+基于「视觉作品画廊」官方 chibi 立绘的桌面宠物：透明无边框窗（**默认不置顶**，可在菜单里「钉在最顶层」）+ 官方精灵 + 状态机
 （拖拽奔跑 / 单击说话 / 双击喂饭 / 闲置睡觉）。一份代码同时出 **macOS（Apple 芯片）** 与 **Windows** 包，
 也支持 Linux 打包。
 
@@ -13,7 +13,7 @@
 
 ```
 whalechan-desktop-pet-dfy/
-├── main.js              # Electron 主进程：透明置顶窗 + 托盘🐳菜单（拖拽：按光标增量移动窗口）
+├── main.js              # Electron 主进程：透明窗（默认不置顶，菜单可钉最上层）+ 托盘🐳菜单（拖拽：按光标增量移动窗口）
 ├── preload.js           # 安全桥接（contextIsolation）：dragBegin / dragEnd / showContextMenu / setIgnoreMouse
 ├── package.json         # 依赖 + 构建脚本 + electron-builder 配置
 ├── package.js           # 一键打包：自动识别系统，输出到 release/（带锁自动兜底）
