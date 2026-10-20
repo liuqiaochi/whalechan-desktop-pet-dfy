@@ -19,4 +19,10 @@ contextBridge.exposeInMainWorld('wc', {
     if (typeof cb !== 'function') return;
     ipcRenderer.on('wc:wallet', (_e, state) => cb(state));
   },
+
+  // 贴边吸附：主进程在拖拽接近左/右边缘时通知渲染层切换立绘（side: null | 'left' | 'right'）
+  onSnap: (cb) => {
+    if (typeof cb !== 'function') return;
+    ipcRenderer.on('wc:snap', (_e, side) => cb(side));
+  },
 });

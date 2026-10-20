@@ -1,7 +1,7 @@
 {
   "name": "whalechan-desktop-pet",
   "version": "1.0.0",
-  "description": "鲸鱼娘跨平台桌宠（macOS / Windows）",
+  "description": "宠物伴侣欧鲸鲸跨平台桌宠（macOS / Windows）",
   "main": "main.js",
   "author": "laofei",
   "private": true,
@@ -13,7 +13,7 @@
   },
   "build": {
     "appId": "com.laofei.whalechan",
-    "productName": "鲸鱼娘桌宠",
+    "productName": "宠物伴侣欧鲸鲸",
     "copyright": "Copyright © 2026 laofei",
     "directories": {
       "output": "release",
@@ -28,7 +28,9 @@
     "mac": {
       "target": "dmg",
       "category": "public.app-category.utilities",
-      "icon": "build/icon.icns"
+      "icon": "build/icon.icns",
+      "identity": null,
+      "forceCodeSigning": false
     },
     "win": {
       "target": "nsis",

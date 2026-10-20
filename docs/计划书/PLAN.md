@@ -1,4 +1,4 @@
-# 鲸鱼娘桌宠 · 二期开发计划书
+# 宠物伴侣欧鲸鲸 · 二期开发计划书
 
 | 项目 | 内容 |
 |------|------|
@@ -217,7 +217,7 @@ function buildPetMenu(){
     { label: '回到右下角', click: () => dockToCorner() },
     { label: '开机自启',   type: 'checkbox', checked: isAutoLaunch(), click: (i) => setAutoLaunch(i.checked) }, // 需求 1 接入
     { type: 'separator' },
-    { label: '退出鲸鱼娘', click: () => app.quit() },
+    { label: '退出欧鲸鲸', click: () => app.quit() },
   ]);
 }
 ```
@@ -262,8 +262,8 @@ macOS 追加保障（一期已有，保留）：`win.setVisibleOnAllWorkspaces(t
 > 1. **`state.json` 的 schema 请预留 `wallet` 之外的字段位**，但**不要把钱包塞进去**。
 >    钱包单独落 `wallet.json` + `ledger.jsonl`（见 `docs/WALLET-CONTRACT.md`），理由：写频不同、丢失后果不同。
 > 2. **菜单文案建议顺手改口语化**。当前 `buildPetMenu()` 里「鼠标穿透：开/关」是状态描述而不是动作，
->    用户不敢点；「退出鲸鱼娘」也偏系统。建议改成「别挡着我」（checkbox）、「关掉我」。
-> 3. **菜单顶部加一行状态**：`鲸鱼娘 · 白饭 12 · 心情不错`（`enabled:false` 的 item）。
+>    用户不敢点；「退出欧鲸鲸」也偏系统。建议改成「别挡着我」（checkbox）、「关掉我」。
+> 3. **菜单顶部加一行状态**：`欧鲸鲸 · 白饭 12 · 心情不错`（`enabled:false` 的 item）。
 >    玩家最想知道的就是余额，放进菜单比开面板便宜。
 > 4. 若采用第 3 条，**每次余额变化后要 `setContextMenu(buildPetMenu())` 刷新托盘菜单**，否则显示的是旧值。
 >
@@ -287,7 +287,7 @@ macOS 追加保障（一期已有，保留）：`win.setVisibleOnAllWorkspaces(t
 | 3 | 开机自启 | `app.setLoginItemSettings({ openAtLogin, openAsHidden:true })` / `getLoginItemSettings()` | 双 |
 | 4 | macOS Dock 彻底隐藏 | `build.mac.extendInfo.LSUIElement = true`（一期靠运行时 `app.dock.hide()`，启动瞬间仍会闪现 Dock 图标） | mac |
 | 5 | 图标规范 | `.ico` 必含 16/24/32/48/64/128/256；`.icns` 需 16/32/128/256/512 及 @2x（`iconutil` 生成）。用 `make_icon.py` 扩展多尺寸输出 | 双 |
-| 6 | NSIS 定制 | `oneClick:false`、`allowToChangeInstallationDirectory:true`、`createDesktopShortcut:true`、`shortcutName:"鲸鱼娘桌宠"` | win |
+| 6 | NSIS 定制 | `oneClick:false`、`allowToChangeInstallationDirectory:true`、`createDesktopShortcut:true`、`shortcutName:"宠物伴侣欧鲸鲸"` | win |
 | 7 | 产物命名 | `artifactName: "WhaleChan-Setup-${version}.${ext}"` / `"WhaleChan-${version}.${ext}"` —— **用 ASCII 名**，规避中文文件名在 CI 与下载环节的编码问题 | 双 |
 | 8 | 体积优化 | `electronLanguages: ["zh-CN","en-US"]`（剔掉几十种 locale，约省 10-20MB）；`asar:true`（默认已开） | 双 |
 | 9 | 签名/公证 | 见 5.4 | 双 |
@@ -558,7 +558,7 @@ src/characters/
 ```json
 {
   "id": "whalechan",
-  "name": "鲸鱼娘",
+  "name": "欧鲸鲸",
   "renderer": "live2d",
   "model": "model/whalechan.model3.json",
   "stage": { "width": 420, "height": 520, "scale": 1.0, "anchor": "bottom-center" },

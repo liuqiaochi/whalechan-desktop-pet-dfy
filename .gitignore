@@ -1,5 +1,7 @@
 # ===== 依赖（不要进仓库，npm install 即可重建）=====
 node_modules/
+# Mac 端 electron 运行时本地缓存（体积大，由 npm install 重建，不进仓库）
+_good/
 
 # ===== 构建产物（重新生成即可）=====
 release/

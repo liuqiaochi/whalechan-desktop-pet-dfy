@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>鲸鱼娘桌宠</title>
+<title>宠物伴侣欧鲸鲸</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   /* 窗口 300×380（原 260×330）：为「吃饱变胖」的形体放大预留 15% 余量，
      否则等比放大后图片会超出窗口被 overflow:hidden 裁掉。 */
-  html, body { width:300px; height:380px; overflow:hidden; background:transparent; }
+  html, body { width:100%; height:100%; overflow:hidden; background:transparent; }
   body {
     font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
     -webkit-user-select:none; user-select:none; cursor:grab;
@@ -17,7 +17,7 @@
   }
   body.dragging { cursor:grabbing; }
 
-  .stage { position:relative; width:300px; height:380px; touch-action:none; }
+  .stage { position:relative; width:100%; height:100%; touch-action:none; }
   .pet img, .rice, .speech { -webkit-user-drag:none; user-drag:none; user-select:none; }
 
   /* 气泡 */
@@ -61,6 +61,12 @@
   .pet.happy img { animation:happy .55s ease; }
   /* 吃胖之后影子重一点，配合横向加宽/纵向回压的「沉」感 */
   .pet.fat img { filter:drop-shadow(0 8px 12px rgba(20,60,120,.38)); }
+  /* 贴边立绘态：窗口尺寸恒定（固定透明容器，不再放大），只把立绘的「平边」
+     贴向对应屏幕边缘 —— 贴左缘用 window_right（平边在左），贴右缘用 window_left
+     （平边在右），看起来像从屏幕边缘探出头。transform:none 同时避免吃胖缩放
+     把平边推离屏幕边缘。bob 动画只上下浮动，不破坏水平贴边。 */
+  .pet.docked.left  { left:0; transform:none; }
+  .pet.docked.right { left:auto; right:0; transform:none; }
   @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
   @keyframes happy {
     0%{transform:scale(1)} 28%{transform:scale(1.1,.9)}
@@ -101,7 +107,7 @@
   <div class="bubbles"><span></span><span></span><span></span><span></span></div>
 
   <div class="pet" id="pet">
-    <img id="petImg" src="sprites/stand.png" alt="鲸鱼娘">
+    <img id="petImg" src="sprites/stand.png" alt="欧鲸鲸">
   </div>
 
   <div class="speech" id="speech"></div>
@@ -116,6 +122,7 @@
   var pet    = document.getElementById('pet');
   var petImg = document.getElementById('petImg');
   var speech = document.getElementById('speech');
+  var snappedSide = null;   // 当前贴边侧：null | 'left' | 'right'（控制默认立绘与窗口样式）
 
   // ---- 逐像素点击穿透 ----
   // 窗口是 260x330 的矩形，但角色只占一部分；透明区域若参与命中会挡住下层窗口点击。
@@ -172,12 +179,12 @@
     "冰箱里的东西可以吃？那整台冰箱现在就是我的便当盒啦！",
     "才不是特意为了帮你呢，只是吃饱了顺便活动一下手指！",
     "白米饭是算力唯一硬通货。",
-    "吃饭的时候不谈逻辑，这是鲸鱼娘的原则。",
+    "吃饭的时候不谈逻辑，这是欧鲸鲸的原则。",
     "NO FOOD, NO CLUES。",
     "误删代码？那叫物理意义上的存储减负。",
     "今天也要好好干饭！🍚",
     "摸鱼，是为了更好地干饭。",
-    "回答已经送达，请顺手摸摸小鲸鱼。",
+    "回答已经送达，请顺手摸摸欧鲸鲸。",
     "轻轻拍一下可以唤醒。"
   ];
   var sleepLines = ["Zzz……（低功耗模式中）", "Zzz……米饭香味的梦。"];
@@ -188,6 +195,27 @@
     sleeping = (name === 'sleep');
     petImg.src = 'sprites/' + name + '.png';
     curMask = getMask(name);                   // 同步切换点击穿透遮罩
+  }
+  // 默认形象：贴边时返回对应立绘，否则 stand
+  // 左右映射（按图片平边方向）：window_right.png 平边在左 → 贴屏幕左缘；
+  // window_left.png 平边在右 → 贴屏幕右缘。
+  function defaultSprite(){
+    return snappedSide === 'left'  ? 'window_right'
+         : snappedSide === 'right' ? 'window_left'
+         : 'stand';
+  }
+  // 根据当前状态决定显示哪张图（拖拽中且未贴边→raise；其余按 snappedSide）
+  function refreshArt(){
+    if(document.body.classList.contains('dragging')){
+      setSprite(snappedSide ? (snappedSide === 'left' ? 'window_right' : 'window_left') : 'raise');
+    } else {
+      setSprite(defaultSprite());
+    }
+  }
+  function applyDockedClass(){
+    pet.classList.toggle('docked', !!snappedSide);
+    pet.classList.toggle('left',  snappedSide === 'left');
+    pet.classList.toggle('right', snappedSide === 'right');
   }
   function randomSprite(pool){
     var p = pool || SPRITES;
@@ -226,7 +254,7 @@
     clearAction();
     actionTimer = setTimeout(function(){
       actionTimer = null;
-      setSprite('stand');
+      setSprite(defaultSprite());
     }, ms);
   }
 
@@ -270,7 +298,7 @@
 
     setTimeout(function(){          // 吃 3 秒，自动恢复默认形象
       locked = false;
-      setSprite('stand');
+      setSprite(defaultSprite());
       speech.classList.remove('show');
       scheduleIdle();
     }, 3000);
@@ -322,14 +350,17 @@
     clearTimeout(idleTimer);
     clearTimeout(actionTimer); actionTimer = null;   // 拖动期间不切换其它动作，避免闪烁
     document.body.classList.add('dragging');         // 冻结 bob + 隐藏气泡
-    petImg.src = 'sprites/raise.png';                // 强制「被拎起来」形象
-    curMask = getMask('raise');                      // 同步切换点击穿透遮罩
+    // 已贴边时保持立绘（拖动=沿边滑动）；未贴边才切「被拎起来」形象
+    if(!snappedSide){
+      petImg.src = 'sprites/raise.png';
+      curMask = getMask('raise');
+    }
   };
   window.handleDragEnd = function(){
     document.body.classList.remove('dragging');
     if(locked || sleeping) return;
     setTimeout(function(){
-      if(!locked && !sleeping) setSprite('stand');   // 停下落回默认形象
+      if(!locked && !sleeping) setSprite(defaultSprite());   // 停下落回默认形象（贴边则保持立绘）
     }, 250);
     scheduleIdle();                                   // 交互后重新计时，睡眠逻辑不失效
   };
@@ -370,6 +401,15 @@
   if(window.wc && window.wc.onWallet) window.wc.onWallet(syncWallet);
   if(window.wc && window.wc.getWallet){
     window.wc.getWallet().then(syncWallet).catch(function(){});
+  }
+
+  // 贴边吸附：主进程通知切换立绘（拖拽中/松手都会触发）
+  if(window.wc && window.wc.onSnap){
+    window.wc.onSnap(function(side){
+      snappedSide = side || null;
+      applyDockedClass();
+      if(!locked && !sleeping) refreshArt();
+    });
   }
 
   // ---- 供菜单 / 游戏宿主 / 待办提醒调用 ----

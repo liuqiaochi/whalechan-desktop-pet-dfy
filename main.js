@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, screen, dialog } = require('electron');
 const path = require('path');
+const { execFile } = require('child_process');
 
 const wallet = require('./src/main/wallet');
 const gameHost = require('./src/main/game-host');
@@ -12,7 +13,7 @@ let win = null;
 let tray = null;
 let clickThrough = false;   // 菜单「别挡着我」：强制整窗穿透（用户显式开启）
 let alphaIgnore = false;    // 逐像素穿透：光标位于角色透明处时的临时穿透
-let pinned = false;         // 菜单「钉在最顶层」：默认关闭 → 与普通窗口同级，可被其他窗口盖住
+// 置顶为默认行为（alwaysOnTop: true），无开关，因此不再保留 pinned 状态变量
 
 function createWindow() {
   win = new BrowserWindow({
@@ -22,7 +23,7 @@ function createWindow() {
     frame: false,
     resizable: false,
     skipTaskbar: true,
-    alwaysOnTop: false,     // 默认不置顶；置顶由「钉在最顶层」开关控制（见 setPinned）
+    alwaysOnTop: true,      // 默认置顶（screen-saver 级），无手动开关
     backgroundColor: '#00000000',
     hasShadow: false,
     webPreferences: {
@@ -38,24 +39,63 @@ function createWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   win.setPosition(width - 330, height - 410);
 
-  // 置顶相关一律走 pinned 状态：默认 false 时既不是最顶层，也不跨工作区/全屏显示。
-  applyPinned();
+  // 默认永远置顶：screen-saver 级浮于普通窗口之上；跨工作区显示，但不覆盖全屏应用
+  // （全屏时的自动隐藏由 startFullscreenWatch 接管，见下方）。
+  win.setAlwaysOnTop(true, 'screen-saver');
+  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });
 
-  win.on('closed', () => { stopDrag(); win = null; });
+  win.on('closed', () => { stopDrag(); stopFullscreenWatch(); win = null; });
 }
 
-// 按当前 pinned 状态应用窗口层级（创建时与切换开关时共用，避免两处逻辑分叉）
-function applyPinned() {
-  if (!win || win.isDestroyed()) return;
-  win.setAlwaysOnTop(pinned, 'screen-saver');
-  win.setVisibleOnAllWorkspaces(pinned, { visibleOnFullScreen: pinned });
+// ---- 全屏自动隐藏 ----
+// 检测到前台 App 处于全屏（看视频 / 演示 / 游戏）时隐藏桌宠，退出全屏后恢复。
+// 仅 macOS 支持：依赖 System Events 的辅助功能(AX)查询，需在「系统设置 → 隐私与安全性 → 辅助功能」
+// 中为本 App（或启动它的终端 / Electron）授予权限；未授权时查询失败会安全降级为「不隐藏」。
+let hiddenByFullscreen = false;
+let fsTimer = null;
+
+function isFrontAppFullscreen() {
+  return new Promise((resolve) => {
+    const script = [
+      'tell application "System Events"',
+      '  set p to first process whose frontmost is true',
+      '  tell p',
+      '    set w to first window whose value of attribute "AXMain" is true',
+      '    try',
+      '      return value of attribute "AXFullScreen" of w',
+      '    on error',
+      '      return false',
+      '    end try',
+      '  end tell',
+      'end tell',
+    ].join('\n');
+    execFile('osascript', ['-e', script], { timeout: 2000 }, (err, stdout) => {
+      if (err) return resolve(false);
+      resolve(/^\s*true\s*$/i.test(stdout));
+    });
+  });
 }
 
-// 菜单「钉在最顶层」：勾上才升到 screen-saver 级（可盖住全屏/其他置顶窗口）
-function setPinned(on) {
-  pinned = !!on;
-  applyPinned();
-  refreshMenus();
+function startFullscreenWatch() {
+  if (process.platform !== 'darwin') return;   // 其他平台暂未实现
+  if (fsTimer) return;
+  const check = () => {
+    if (!win || win.isDestroyed()) return;
+    isFrontAppFullscreen()
+      .then((fs) => {
+        if (fs === hiddenByFullscreen) return; // 状态未变，无需动作
+        hiddenByFullscreen = fs;
+        if (fs) win.hide();
+        else win.showInactive();
+      })
+      .catch(() => {});
+  };
+  check();
+  fsTimer = setInterval(check, 1000);
+}
+
+function stopFullscreenWatch() {
+  if (fsTimer) { clearInterval(fsTimer); fsTimer = null; }
 }
 
 // ---- 拖拽：主进程按「光标位移增量」移动窗口（delta 定位，无累积偏差）----
@@ -64,6 +104,11 @@ function setPinned(on) {
 let dragTimer = null;
 let dragStartWin = { x: 0, y: 0 };
 let dragStartCursor = { x: 0, y: 0 };
+
+// 贴边吸附：拖到距屏幕左/右边缘 EDGE_SNAP 像素内即吸附。
+// 窗口尺寸恒定 300×380（固定透明容器，立绘在容器内等比缩放），松手只贴边定位，绝不放大窗口。
+const EDGE_SNAP = 30;
+let currentEdge = null;   // 拖拽过程中当前的吸附边：null | 'left' | 'right'
 
 function stopDrag() {
   if (dragTimer) { clearInterval(dragTimer); dragTimer = null; }
@@ -79,15 +124,39 @@ ipcMain.on('wc:drag-begin', () => {
   const move = () => {
     if (!win) { stopDrag(); return; }
     const p = screen.getCursorScreenPoint();
-    win.setPosition(
-      Math.round(dragStartWin.x + (p.x - dragStartCursor.x)),
-      Math.round(dragStartWin.y + (p.y - dragStartCursor.y))
-    );
+    const dx = p.x - dragStartCursor.x;
+    const dy = p.y - dragStartCursor.y;
+    let nx = Math.round(dragStartWin.x + dx);
+    let ny = Math.round(dragStartWin.y + dy);
+    const wa = screen.getDisplayMatching(win.getBounds()).workArea;
+    const winW = win.getBounds().width;
+    let edge = null;
+    if (nx <= wa.x + EDGE_SNAP) { nx = wa.x; edge = 'left'; }
+    else if (nx + winW >= wa.x + wa.width - EDGE_SNAP) { nx = wa.x + wa.width - winW; edge = 'right'; }
+    win.setPosition(nx, ny);
+    if (edge !== currentEdge) {
+      currentEdge = edge;
+      if (win && !win.isDestroyed()) win.webContents.send('wc:snap', edge);
+    }
   };
   dragTimer = setInterval(move, 8);              // ~120Hz 平滑跟随
 });
 
-ipcMain.on('wc:drag-end', () => { stopDrag(); });
+// 松手后「吸附 + 落定」：窗口尺寸永远不变（固定透明容器），贴边时只把窗口
+// 横向贴死屏幕边缘，纵坐标保持拖拽松手时的位置（不强制底对齐），让立绘停在
+// 你把它拖到的高度；未贴边则不动。
+function dockSettle(edge) {
+  if (!win || win.isDestroyed() || !edge) return;
+  const wa = screen.getDisplayMatching(win.getBounds()).workArea;
+  const b = win.getBounds();
+  const x = edge === 'left' ? wa.x : wa.x + wa.width - b.width;
+  win.setPosition(x, b.y);   // b.y 即松手时窗口的纵坐标，原样保留
+}
+
+ipcMain.on('wc:drag-end', () => {
+  stopDrag();
+  dockSettle(currentEdge);
+});
 
 // ---- 逐像素点击穿透 ----
 // 渲染层根据当前精灵的 alpha 遮罩判断光标是否落在角色不透明处：
@@ -120,7 +189,7 @@ function refreshMenus() {
   if (!tray || tray.isDestroyed()) return;
   tray.setContextMenu(buildPetMenu());
   const s = wallet.getState();
-  tray.setToolTip(`鲸鱼娘 · 白饭 ${s.rice} · ${s.moodText}`);
+  tray.setToolTip(`欧鲸鲸 · 白饭 ${s.rice} · ${s.moodText}`);
 }
 
 function buildPetMenu() {
@@ -130,7 +199,7 @@ function buildPetMenu() {
 
   return Menu.buildFromTemplate([
     // 状态行：一眼看到余额和心情。原生菜单只能靠 disabled item 做，灰一点但够用。
-    { label: `鲸鱼娘 · 白饭 ${s.rice} · ${s.moodText}`, enabled: false },
+    { label: `欧鲸鲸 · 白饭 ${s.rice} · ${s.moodText}`, enabled: false },
     { type: 'separator' },
 
     { label: '陪我聊两句', click: () => invoke('window.speakRandom && window.speakRandom()') },
@@ -148,7 +217,6 @@ function buildPetMenu() {
       : []),
 
     { type: 'separator' },
-    { label: '钉在最顶层', type: 'checkbox', checked: pinned, click: (item) => setPinned(item.checked) },
     { label: '别挡着我', type: 'checkbox', checked: clickThrough, click: () => toggleThrough() },
 
     { type: 'separator' },
@@ -164,7 +232,7 @@ function showShop() {
     : '货架还空着。\n\n白饭已经能当钱用了，等第一批商品上架就能买。';
   dialog.showMessageBox({
     type: 'info',
-    title: '鲸鱼娘的小卖部',
+    title: '欧鲸鲸的小卖部',
     message: `白饭 ${s.rice}`,
     detail,
     buttons: ['知道了'],
@@ -182,7 +250,7 @@ ipcMain.on('wc:context-menu', () => {
 function buildTray() {
   const icon = nativeImage.createFromPath(path.join(__dirname, 'src', 'tray.png'));
   tray = new Tray(icon);
-  tray.setToolTip('鲸鱼娘桌宠');
+  tray.setToolTip('宠物伴侣欧鲸鲸');
   refreshMenus();
   tray.on('click', () => toggleThrough());
 }
@@ -199,6 +267,7 @@ app.whenReady().then(() => {
   wallet.init(app.getPath('userData'));
 
   createWindow();
+  startFullscreenWatch();   // 全屏自动隐藏（仅 macOS 生效，其他平台自动跳过）
   buildTray();
 
   gameHost.init({

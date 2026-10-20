@@ -16,7 +16,7 @@
 { label: '喂白米饭 🍚', ... },
 { label: '切换姿势', ... },
 { label: clickThrough ? '鼠标穿透：开' : '鼠标穿透：关', ... },   // ← 状态不是动作
-{ label: '退出鲸鱼娘', ... },
+{ label: '退出欧鲸鲸', ... },
 ```
 
 四个具体问题：
@@ -31,7 +31,7 @@
 ## 1.2 改版方案
 
 ```
-鲸鱼娘 · 白饭 12 · 心情不错        ← 不可点，纯状态行
+欧鲸鲸 · 白饭 12 · 心情不错        ← 不可点，纯状态行
 ────────────────────
 陪我聊两句
 喂口白饭 🍚  （3 白饭）
@@ -53,7 +53,7 @@
 - **"喂口白饭（3 白饭）"** 把价格写在标签里，玩家不用点就知道能不能喂。**余额不足时不要禁用**——让他点，宠物会说话。
 - **"别挡着我"** = 鼠标穿透，改成 checkbox（勾选态由系统画 ✓），语义从"状态"变成"动作"。
 - **"先睡会儿"** 是新增的：手动进入 `sleep`，给用户一个"我要安静"的出口，比直接关掉温和。
-- **"关掉我"** 用第一人称，比"退出鲸鱼娘"有角色感。
+- **"关掉我"** 用第一人称，比"退出欧鲸鲸"有角色感。
 
 ## 1.3 代码模板
 
@@ -65,7 +65,7 @@ function buildPetMenu() {
   const moodText = s.mood >= 80 ? '心情很好' : s.mood >= 55 ? '心情不错' : '心情平静';
 
   return Menu.buildFromTemplate([
-    { label: `鲸鱼娘 · 白饭 ${s.rice} · ${moodText}`, enabled: false },
+    { label: `欧鲸鲸 · 白饭 ${s.rice} · ${moodText}`, enabled: false },
     { type: 'separator' },
 
     { label: '陪我聊两句', click: () => invoke('window.speakRandom && window.speakRandom()') },
@@ -90,7 +90,7 @@ function buildPetMenu() {
 // 状态变化后必须刷新托盘菜单，否则余额停在旧值
 function refreshMenus() {
   if (tray) tray.setContextMenu(buildPetMenu());
-  if (tray) tray.setToolTip(`鲸鱼娘 · 白饭 ${wallet.getState().rice}`);
+  if (tray) tray.setToolTip(`欧鲸鲸 · 白饭 ${wallet.getState().rice}`);
 }
 ```
 
@@ -99,7 +99,7 @@ function refreshMenus() {
 ## 1.4 托盘 tooltip
 
 ```js
-tray.setToolTip(`鲸鱼娘 · 白饭 ${rice} · ${moodText}`);
+tray.setToolTip(`欧鲸鲸 · 白饭 ${rice} · ${moodText}`);
 ```
 
 这是**不打扰的状态显示**——鼠标悬停就能看到，不用点开。比任何弹窗都克制。

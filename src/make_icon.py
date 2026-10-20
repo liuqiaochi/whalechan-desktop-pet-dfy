@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""生成鲸鱼娘桌宠的应用图标与托盘图标。
+"""生成宠物伴侣欧鲸鲸的应用图标与托盘图标。
 
 应用图标素材：build/icon-source.png（用户提供的新立绘，白底）
   流程：去白底(四角 flood fill) → 裁切居中补方 → 生成 icon.png / icon.ico / icon.icns
