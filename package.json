@@ -23,7 +23,9 @@
       "main.js",
       "preload.js",
       "src/**/*",
-      "!src/sprites/_contact_sheet.png"
+      "!src/sprites/_contact_sheet.png",
+      "!src/sprites/walk_animation.mp4",
+      "!src/make_walk_from_video.py"
     ],
     "mac": {
       "target": "dmg",

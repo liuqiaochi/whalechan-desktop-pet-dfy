@@ -25,4 +25,15 @@ contextBridge.exposeInMainWorld('wc', {
     if (typeof cb !== 'function') return;
     ipcRenderer.on('wc:snap', (_e, side) => cb(side));
   },
+
+  // 闲置自动巡逻：渲染层在闲置 2 分钟后请求启动，桌宠按规律路线绕屏幕行走
+  // （横向到边 → 上到顶 → 反向横向 → 下到底 → 循环）
+  patrolStart: () => ipcRenderer.send('wc:patrol-start'),
+  patrolStop:  () => ipcRenderer.send('wc:patrol-stop'),
+
+  // 巡逻朝向通知（dir: -1 向左 | 1 向右），渲染层据此镜像翻转走路形象
+  onPatrolDir: (cb) => {
+    if (typeof cb !== 'function') return;
+    ipcRenderer.on('wc:patrol-dir', (_e, dir) => cb(dir));
+  },
 });

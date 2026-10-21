@@ -25,7 +25,8 @@ whalechan-desktop-pet-dfy/
 │   ├── tray.png / tray@2x.png  # 托盘小图标
 │   ├── make_icon.py     # 生成托盘/应用图标（png/ico/icns）
 │   ├── make_alpha.py    # 生成逐像素点击穿透遮罩 src/alpha-masks.js（精灵变更后需重跑）
-│   └── sprites/         # 13 个姿势精灵（透明 PNG）+ 一张拼图（不打包）
+│   ├── make_walk_from_video.py # 从 sprites/walk_animation.mp4 抽帧抠底 → sprites/walk/（走路动画来源）
+│   └── sprites/         # 13 个姿势精灵（透明 PNG）+ walk/ 走路动画帧 + 拼图/视频源（不打包）
 └── LICENSE              # 代码许可证（MIT）
 ```
 
@@ -176,6 +177,8 @@ A：已内置**逐像素点击穿透**——按每个精灵的 alpha 遮罩判�
 
 **Q：想换掉欧鲸鲸形象？**
 A：替换 `src/sprites/` 下对应姿势 PNG 即可（建议保持透明背景、尺寸一致），并运行 `python src/make_alpha.py` 重建点击遮罩；
+走路动画换 `src/sprites/walk_animation.mp4`（白底、正面全身、角色原地走），运行 `python src/make_walk_from_video.py`
+自动抽帧抠底并重排为一个步态循环，再运行 `python src/make_alpha.py`（脚本会打印帧数，需与 `whalechan.html` 的 `WALK_FRAMES` 一致）；
 托盘图标换 `src/tray.png`、`tray@2x.png`；应用图标换 `build/` 后运行 `python3 src/make_icon.py` 重新生成。
 
 ---

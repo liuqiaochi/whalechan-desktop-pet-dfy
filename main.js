@@ -158,6 +158,79 @@ ipcMain.on('wc:drag-end', () => {
   dockSettle(currentEdge);
 });
 
+// ---- 闲置自动巡逻：渲染层在闲置 2 分钟后请求启动，桌宠在屏幕内随机游走 ----
+let patrolTimer = null;
+// 随机分段游走：每段随机方向（以横向为主，偶尔斜走），持续 3~10 秒才换向。
+// 选方向时先预判这一段的位移是否放得下（不会半路撞到工作区边缘），
+// 因此换向节奏稳定落在 3~10 秒，不会出现「贴着边来回抖」。
+const PATROL_SPEED = 100;        // 像素/秒（与走路动画步频匹配）
+function startPatrol() {
+  if (patrolTimer || !win || win.isDestroyed()) return;
+  const TICK = 40;                              // 25fps 平滑移动
+  const STEP = PATROL_SPEED * TICK / 1000;      // 每 tick 位移
+  let dirX = 0, dirY = 0;                       // 当前段方向分量
+  let px = 0, py = 0;                           // 浮点位置（避免整数累积误差）
+  let segEnd = 0;                               // 当前段结束时间
+
+  // 选一段新方向：先定「持续多久」，再验证这个方向放不放得下这段位移
+  function pickSegment(now) {
+    if (!win || win.isDestroyed()) return;
+    const wa = screen.getDisplayMatching(win.getBounds()).workArea;
+    const b = win.getBounds();
+    const roomL = px - wa.x;                              // 向左可用距离
+    const roomR = wa.x + wa.width - b.width - px;          // 向右可用距离
+    const roomU = py - wa.y;                              // 向上可用距离
+    const roomD = wa.y + wa.height - b.height - py;        // 向下可用距离
+    for (let i = 0; i < 14; i++) {
+      const dur = 3000 + Math.random() * 7000;            // 3~10 秒
+      const dist = PATROL_SPEED * dur / 1000;
+      const dx = Math.random() < 0.5 ? -1 : 1;            // 横向必有分量（形象只有左右朝向）
+      // 竖向：多为一小段斜走，或纯横向（0.7 概率）
+      const dy = Math.random() < 0.3 ? (Math.random() < 0.5 ? -0.6 : 0.6) : 0;
+      const needX = dist * Math.abs(dx);
+      const needY = dist * Math.abs(dy);
+      if (needX <= (dx < 0 ? roomL : roomR) && needY <= (dy < 0 ? roomU : roomD)) {
+        dirX = dx; dirY = dy;
+        segEnd = now + dur;
+        win.webContents.send('wc:patrol-dir', dx);        // 朝向：向右走（+1）渲染层会镜像
+        return;
+      }
+    }
+    // 极端窄屏兜底：朝空间较大的一侧走，时长按实际剩余空间折算（800ms~3s）
+    const room = roomR >= roomL ? roomR : roomL;
+    dirX = roomR >= roomL ? 1 : -1; dirY = 0;
+    segEnd = now + Math.min(3000, Math.max(800, room / PATROL_SPEED * 1000));
+    win.webContents.send('wc:patrol-dir', dirX);
+  }
+
+  const b0 = win.getBounds();
+  px = b0.x;
+  py = b0.y;
+  pickSegment(Date.now());
+
+  patrolTimer = setInterval(() => {
+    if (!win || win.isDestroyed()) { stopPatrol(); return; }
+    const wa = screen.getDisplayMatching(win.getBounds()).workArea;
+    const b = win.getBounds();
+    const now = Date.now();
+    if (now >= segEnd) pickSegment(now);
+
+    let nx = px + dirX * STEP;
+    let ny = py + dirY * STEP;
+    // 兜底夹紧（正常情况下段内不会出界）
+    nx = Math.min(Math.max(nx, wa.x), wa.x + wa.width - b.width);
+    ny = Math.min(Math.max(ny, wa.y), wa.y + wa.height - b.height);
+    px = nx;
+    py = ny;
+    win.setPosition(Math.round(nx), Math.round(ny));
+  }, TICK);
+}
+function stopPatrol() {
+  if (patrolTimer) { clearInterval(patrolTimer); patrolTimer = null; }
+}
+ipcMain.on('wc:patrol-start', () => startPatrol());
+ipcMain.on('wc:patrol-stop', () => stopPatrol());
+
 // ---- 逐像素点击穿透 ----
 // 渲染层根据当前精灵的 alpha 遮罩判断光标是否落在角色不透明处：
 // 落在透明处 → 请求忽略鼠标（点击穿透到下层窗口）；落在角色身上 → 恢复接收。

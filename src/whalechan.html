@@ -61,6 +61,15 @@
   .pet.happy img { animation:happy .55s ease; }
   /* 吃胖之后影子重一点，配合横向加宽/纵向回压的「沉」感 */
   .pet.fat img { filter:drop-shadow(0 8px 12px rgba(20,60,120,.38)); }
+  /* 巡逻朝向：走路帧原图是「朝左」的，所以**向右走时**水平镜像。翻转放在 .pet
+     容器上（img 的 bob 动画会覆盖 transform），且与吃胖缩放相乘，两者可叠加。
+     transition 会经过 scaleX:0，看起来像原地「转身」再朝反向走。 */
+  .pet.facing-right {
+    transform:translateX(-50%) scale(calc(var(--chubby-x, 1) * -1), var(--chubby-y, 1));
+  }
+  /* 走路帧（205x300）显示高度与站姿（232px）拉齐，避免一走动形象突然变小。
+     宽度按比例自适应，不影响点击遮罩（遮罩按相对位置查表）。 */
+  .pet.walking img { height:232px; max-height:none; width:auto; }
   /* 贴边立绘态：窗口尺寸恒定（固定透明容器，不再放大），只把立绘的「平边」
      贴向对应屏幕边缘 —— 贴左缘用 window_right（平边在左），贴右缘用 window_left
      （平边在右），看起来像从屏幕边缘探出头。transform:none 同时避免吃胖缩放
@@ -191,7 +200,37 @@
 
   var spriteIdx = 0;
   var sleeping  = false;
+
+  // ---- 走路动画帧（巡游时播放）----
+  // 帧由 src/make_walk_from_video.py 从 src/sprites/walk_animation.mp4 抽取：
+  // 白底泛洪抠图 + 擦水印 + 自动取一个步态循环，统一 205x300（尺寸/相对位置一致，不抖）。
+  // 各帧轮廓相近，点击穿透共用 make_alpha.py 由 sprites/walk.png 生成的单张 'walk' 遮罩。
+  var WALK_FRAMES = 27;
+  var WALK_MS     = 42;              // 源视频 24fps → 每帧约 42ms
+  var walkTimer = null;
+  var walkIdx   = 0;
+  function walkSrc(i){ return 'sprites/walk/walk_' + ('0' + (i + 1)).slice(-2) + '.png'; }
+  (function preloadWalk(){           // 预加载，避免首轮播放时闪烁
+    for (var i = 0; i < WALK_FRAMES; i++){ var im = new Image(); im.src = walkSrc(i); }
+  })();
+  function stopWalk(){
+    if(walkTimer){ clearInterval(walkTimer); walkTimer = null; }
+    pet.classList.remove('walking');
+  }
+  function startWalk(){
+    if(walkTimer) return;
+    pet.classList.add('walking');
+    curMask = getMask('walk');       // 32 帧共用并集遮罩
+    walkIdx = 0;
+    petImg.src = walkSrc(0);
+    walkTimer = setInterval(function(){
+      walkIdx = (walkIdx + 1) % WALK_FRAMES;
+      petImg.src = walkSrc(walkIdx);
+    }, WALK_MS);
+  }
+
   function setSprite(name){
+    stopWalk();                     // 切其它形象时确保走路动画已停（防残留计时器）
     sleeping = (name === 'sleep');
     petImg.src = 'sprites/' + name + '.png';
     curMask = getMask(name);                   // 同步切换点击穿透遮罩
@@ -274,6 +313,7 @@
   // 白饭不足时**仍然播吃动画**，只换台词 —— 把核心互动变成一堵墙是最容易犯的错。
   function feed(){
     if(locked) return;
+    exitPatrol();                                   // 喂饭即视为交互，停止巡逻
     locked = true;
     sleeping = false;
     clearAction();
@@ -307,18 +347,53 @@
   function wake(){
     if(!sleeping) return;
     doAction('recover', "呼……充电完毕，随时可以开工！", 3000);
+    scheduleIdle();                                   // 醒来后重新计时
   }
 
-  // 闲置 -> 睡觉
-  var idleTimer = null;
+  // 闲置：2 分钟无交互 → 自动在屏幕上巡逻走动；10 分钟无交互 → 进入休息睡觉
+  var IDLE_PATROL = 2 * 60 * 1000;  // 2 分钟：开始巡逻
+  var IDLE_SLEEP  = 10 * 60 * 1000; // 10 分钟：进入睡觉
+  var idleTimer = null;              // 睡觉计时
+  var patrolTimer = null;            // 巡逻计时
+  var patrolling = false;
   var mood = 60;                     // 由主进程同步；只影响「多爱说话」，不产生任何减益
+
+  function enterPatrol(){
+    if(patrolling || locked || sleeping || snappedSide) return;
+    patrolling = true;
+    startWalk();                     // 32 帧走路动画
+    if(window.wc && window.wc.patrolStart) window.wc.patrolStart();
+  }
+  function exitPatrol(){
+    if(!patrolling) return;
+    patrolling = false;
+    stopWalk();
+    pet.classList.remove('facing-right');  // 停止巡逻时恢复默认朝向
+    if(window.wc && window.wc.patrolStop) window.wc.patrolStop();
+  }
+  // 巡逻朝向：主进程在换段（开始新一段横移）时通知 -1/1。
+  // 走路帧原图朝左，故 dir > 0（向右走）时镜像翻转，其余保持原样。
+  if(window.wc && window.wc.onPatrolDir){
+    window.wc.onPatrolDir(function(dir){
+      if(!patrolling) return;
+      pet.classList.toggle('facing-right', dir > 0);
+    });
+  }
   function scheduleIdle(){
     clearTimeout(idleTimer);
+    clearTimeout(patrolTimer);
+    // 2 分钟后开始巡逻（锁定 / 睡眠 / 贴边时顺延到下次 idle 再判断）
+    patrolTimer = setTimeout(function(){
+      if(locked || sleeping || snappedSide){ scheduleIdle(); return; }
+      enterPatrol();
+    }, IDLE_PATROL);
+    // 10 分钟后进入休息睡觉（覆盖巡逻）
     idleTimer = setTimeout(function(){
-      if(locked) { scheduleIdle(); return; }
+      if(locked){ scheduleIdle(); return; }
+      exitPatrol();
       setSprite('sleep');
       showSpeech("Zzz……（电量告急，待机中）");
-    }, 50000);
+    }, IDLE_SLEEP);
   }
   scheduleIdle();
 
@@ -347,6 +422,7 @@
 
   // ---- 拖拽开始/结束回调（由输入层触发）----
   window.handleDragStart = function(){
+    exitPatrol();                                  // 拖拽时停止自动巡逻（避免两套移动打架）
     clearTimeout(idleTimer);
     clearTimeout(actionTimer); actionTimer = null;   // 拖动期间不切换其它动作，避免闪烁
     document.body.classList.add('dragging');         // 冻结 bob + 隐藏气泡
@@ -366,6 +442,7 @@
   };
   window.handleSingleClick = function(){
     if(locked) return;
+    exitPatrol();                                   // 交互即停止巡逻
     if(sleeping){ wake(); return; }
     doAction(randomSprite(FUN), randomLine(), 3000);
     scheduleIdle();                                   // 交互后重新计时
@@ -425,7 +502,9 @@
   };
   window.sleepNow = function(){
     if(locked) return;
+    exitPatrol();
     clearTimeout(idleTimer);
+    clearTimeout(patrolTimer);
     clearAction();
     sleeping = true;
     setSprite('sleep');
