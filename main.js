@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, screen, dialog } = require('electron');
 const path = require('path');
-const { execFile } = require('child_process');
+const fs = require('fs');
+const { execFile, spawn } = require('child_process');
 
 const wallet = require('./src/main/wallet');
 const gameHost = require('./src/main/game-host');
@@ -49,12 +50,28 @@ function createWindow() {
 
 // ---- 全屏自动隐藏 ----
 // 检测到前台 App 处于全屏（看视频 / 演示 / 游戏）时隐藏桌宠，退出全屏后恢复。
-// 仅 macOS 支持：依赖 System Events 的辅助功能(AX)查询，需在「系统设置 → 隐私与安全性 → 辅助功能」
-// 中为本 App（或启动它的终端 / Electron）授予权限；未授权时查询失败会安全降级为「不隐藏」。
+// 平台实现不同，行为一致：
+//   macOS：osascript 查询 System Events 的 AXFullScreen 属性（需「辅助功能」授权，
+//          未授权时查询失败，安全降级为「不隐藏」）。
+//   Windows：常驻一个隐藏的 PowerShell 进程，每秒用 user32 的 GetForegroundWindow +
+//          GetWindowRect 比对「前台窗口矩形」与「所在显示器矩形」，完全重合即视为全屏。
+//          只用系统自带 PowerShell，不引入原生模块、无需管理员权限。
 let hiddenByFullscreen = false;
-let fsTimer = null;
+let fsTimer = null;      // macOS 轮询定时器
+let fsProc = null;       // Windows 常驻探测进程
+let fsWatchOn = false;   // 是否处于监听状态（用于阻止进程意外退出后的重启）
+let fsRetries = 0;
 
-function isFrontAppFullscreen() {
+// 全屏状态统一出口：状态变化才动作，避免反复 hide/show 抖动
+function applyFullscreenState(fsState) {
+  if (!win || win.isDestroyed()) return;
+  if (fsState === hiddenByFullscreen) return;
+  hiddenByFullscreen = fsState;
+  if (fsState) win.hide();
+  else win.showInactive();
+}
+
+function isFrontAppFullscreenMAC() {
   return new Promise((resolve) => {
     const script = [
       'tell application "System Events"',
@@ -76,26 +93,125 @@ function isFrontAppFullscreen() {
   });
 }
 
-function startFullscreenWatch() {
-  if (process.platform !== 'darwin') return;   // 其他平台暂未实现
-  if (fsTimer) return;
-  const check = () => {
-    if (!win || win.isDestroyed()) return;
-    isFrontAppFullscreen()
-      .then((fs) => {
-        if (fs === hiddenByFullscreen) return; // 状态未变，无需动作
-        hiddenByFullscreen = fs;
-        if (fs) win.hide();
-        else win.showInactive();
-      })
-      .catch(() => {});
+// Windows 探测脚本：编译一小段 C#（user32 调用），每秒输出一行 "1"/"0"。
+// 用单引号 here-string，避免 PowerShell 展开变量；只依赖系统自带 .NET。
+// 注意：脚本内容保持纯 ASCII（PowerShell 5.1 读取无 BOM 的 UTF-8 会按 ANSI 解码），
+// 写入时再加 UTF-8 BOM 双保险。
+const WIN_FS_PROBE = String.raw`$ErrorActionPreference = 'SilentlyContinue'
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+public class FgWinProbe {
+  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+  [StructLayout(LayoutKind.Sequential)] public struct MONITORINFO { public int cbSize; public RECT rcMonitor; public RECT rcWork; public int dwFlags; }
+
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+  [DllImport("user32.dll")] public static extern IntPtr MonitorFromWindow(IntPtr hWnd, uint dwFlags);
+  [DllImport("user32.dll")] public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+  public static string Probe() {
+    IntPtr h = GetForegroundWindow();
+    if (h == IntPtr.Zero) return "0";
+    RECT r;
+    if (!GetWindowRect(h, out r)) return "0";
+    MONITORINFO mi = new MONITORINFO();
+    mi.cbSize = Marshal.SizeOf(typeof(MONITORINFO));
+    IntPtr mon = MonitorFromWindow(h, 2);      // MONITOR_DEFAULTTONEAREST
+    if (!GetMonitorInfo(mon, ref mi)) return "0";
+    RECT m = mi.rcMonitor;
+    const int tol = 2;                          // tolerance in pixels
+    bool full = Math.Abs(r.Left - m.Left) <= tol && Math.Abs(r.Top - m.Top) <= tol &&
+                Math.Abs(r.Right - m.Right) <= tol && Math.Abs(r.Bottom - m.Bottom) <= tol;
+    return full ? "1" : "0";
+  }
+}
+'@
+while ($true) {
+  $v = '0'
+  try { $v = [FgWinProbe]::Probe() } catch { $v = '0' }
+  [Console]::Out.WriteLine($v)
+  [Console]::Out.Flush()
+  Start-Sleep -Milliseconds 1000
+}
+`;
+
+function startFullscreenWatchWin() {
+  let scriptPath;
+  try {
+    scriptPath = path.join(app.getPath('userData'), 'fullscreen-probe.ps1');
+    fs.writeFileSync(scriptPath, '\ufeff' + WIN_FS_PROBE, 'utf8');   // 带 BOM，兼容 PowerShell 5.1
+  } catch (e) {
+    return;                      // 写不出脚本就放弃（例如目录不可写），不影响其它功能
+  }
+  const launch = () => {
+    if (!fsWatchOn || !win || win.isDestroyed()) return;
+    let child;
+    try {
+      child = spawn('powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', scriptPath],
+        { windowsHide: true });
+    } catch (e) {
+      return;
+    }
+    fsProc = child;
+    let buf = '';
+    let gotOutput = false;
+    let retried = false;          // error / exit 只重启一次，避免双触发
+    const retry = () => {
+      if (retried) return;
+      retried = true;
+      if (fsProc === child) fsProc = null;
+      if (!fsWatchOn || !win || win.isDestroyed()) return;
+      if (fsRetries++ < 3) setTimeout(launch, 3000);   // 意外退出 / 启动失败时有限次重启
+    };
+    // 8 秒内没有任何输出：多半是 PowerShell 被组策略或安全软件禁用，仅提示不改行为
+    const warnTimer = setTimeout(() => {
+      if (!gotOutput) console.warn('[fullscreen] Windows 探测无输出：请检查 PowerShell 是否可用（不影响其它功能）');
+    }, 8000);
+    child.stdout.on('data', (d) => {
+      gotOutput = true;
+      clearTimeout(warnTimer);
+      buf += d.toString();
+      let i;
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, i).trim();
+        buf = buf.slice(i + 1);
+        if (line === '1' || line === '0') applyFullscreenState(line === '1');
+      }
+    });
+    child.on('error', () => { clearTimeout(warnTimer); retry(); });
+    child.on('exit', () => { clearTimeout(warnTimer); retry(); });
   };
-  check();
-  fsTimer = setInterval(check, 1000);
+  launch();
+}
+
+function startFullscreenWatch() {
+  if (fsWatchOn) return;
+  fsWatchOn = true;
+  fsRetries = 0;
+  if (process.platform === 'darwin') {
+    const check = () => {
+      if (!win || win.isDestroyed()) return;
+      isFrontAppFullscreenMAC()
+        .then((fsState) => applyFullscreenState(fsState))
+        .catch(() => {});
+    };
+    check();
+    fsTimer = setInterval(check, 1000);
+  } else if (process.platform === 'win32') {
+    startFullscreenWatchWin();
+  }
 }
 
 function stopFullscreenWatch() {
+  fsWatchOn = false;
   if (fsTimer) { clearInterval(fsTimer); fsTimer = null; }
+  if (fsProc) {
+    try { fsProc.kill(); } catch (e) { /* 已退出 */ }
+    fsProc = null;
+  }
 }
 
 // ---- 拖拽：主进程按「光标位移增量」移动窗口（delta 定位，无累积偏差）----
@@ -340,7 +456,7 @@ app.whenReady().then(() => {
   wallet.init(app.getPath('userData'));
 
   createWindow();
-  startFullscreenWatch();   // 全屏自动隐藏（仅 macOS 生效，其他平台自动跳过）
+  startFullscreenWatch();   // 全屏自动隐藏：macOS 走 osascript、Windows 走 PowerShell 探测
   buildTray();
 
   gameHost.init({
@@ -374,3 +490,6 @@ app.whenReady().then(() => {
 
 // 关窗不退出，保留托盘
 app.on('window-all-closed', () => {});
+
+// 退出前收尾：确保 Windows 的常驻探测进程不残留
+app.on('will-quit', () => { stopFullscreenWatch(); });
